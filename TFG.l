@@ -1,0 +1,162 @@
+%{
+
+#include "structs.h"
+#include "TFG.tab.h"
+
+
+
+%}
+%option yylineno
+
+axiom "axiom"
+hypothesis "hypothesis"
+definition "definition"
+lemma "lemma"
+theorem "theorem"
+conjecture "conjecture"
+negatedConjecture "negated_conjecture"
+type "type"
+assumption "assumption"
+plain "plain"
+unknown "unknown" 
+
+typedHighLogic "thf"
+typedFirstLogic "tff"
+firstLogic "fof"
+normalForm "cnf"
+negationNormalForm "nhf"
+negationExtendedForm "nxf"
+normalizedTypedForm "ntf"
+letterMinus [a-z]
+letterMayus [A-Z]
+numeric [0-9]
+symbolsVar [_]
+Alpha_numeric ([a-zA-Z0-9_])
+
+vLine "|"
+
+equalComb "@="
+descriptcionComb "@@-"
+existsComb "??"
+choiceComb "@@+"
+forAllComb "!!"
+gentzArrow "-->"
+
+
+thfPlus "@+"
+thfMinus "@-"
+infixInequality "!="
+iff "<=>"
+implies "=>"
+if "<="
+nIff "<~>"
+nOr "~|"
+nAnd "~&"
+not "~"
+tyForAll "!>"
+choice "@+"
+description "@-"
+subtype_sign "<<"
+assignment ":="
+
+and "&"
+application "@"
+equal "="
+greater ">"
+less "<"
+mult "*"
+minus "-"
+plus "+"
+forAll "!"
+exists "?"
+hash "#"
+lambda "^"
+dollar "$"
+div "%"
+
+upperWord {letterMayus}({Alpha_numeric}*)
+lowerWord {letterMinus}({Alpha_numeric}*)
+dollarWord {dollar}({Alpha_numeric}+)
+dollarDollarWord {dollar}{dollar}({Alpha_numeric}+)
+var {upperWord}
+functor {lowerWord}
+distinctObject """ [A-z] """
+systemConstant {dollarDollarWord}
+
+let {dollar}"let"
+
+oParen "("
+cParen ")"
+oBra "["
+cBra "]"
+oKey "\{"
+cKey "\}"
+comma ","
+dot "."
+doubleDot ":"
+
+
+ignore .|[-\s\n\r\t]
+
+%%
+{typedHighLogic} { return THF;}
+
+{axiom} { return AXIOM;}
+{hypothesis} { return HYPOTHESIS;}
+{definition} { return DEFINITION;}
+{lemma} { return LEMMA;}
+{theorem} { return THEOREM;}
+{conjecture} { return CONJECTURE;}
+{negatedConjecture} { return NEGATEDCONJ;}
+{type} { return TYPE;}
+{assumption} { return ASSUMPTION;}
+{plain} { return PLAIN;}
+{unknown} { return UNKNOWN;}
+
+{let} {return LET;}
+
+{var} { yylval.valChar = strdup(yytext); return VAR;}
+{functor} { yylval.valChar = strdup(yytext); return FUNCTOR;}
+{dollarWord} { yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
+{distinctObject} {yylval.valChar = strdup(yytext); return DISTINCT_OBJECT;}
+{numeric} {yylval.valInt = atoi(yytext); return NUMBER;}
+
+{infixInequality} {return INFIX_INEQUALITY;}
+{iff} {return IFF;}
+{implies} {return IMPLIES;}
+{nIff} {return NIFF;}
+{nOr} {return NOR;}
+{nAnd} {return NAND;}
+{exists} {return EXISTS;}
+{tyForAll} {return TYPED_FORALL;}
+{choice} {return CHOICE;}
+{description} {return DESCRIPTION;}
+{subtype_sign} {return SUBTYPE_SIGN;}
+{assignment} {return ASSIGNMENT;}
+
+{equal} {return INFIX_EQUALITY;}
+{and} {return AND;}
+{application} {return APPLICATION;}
+{greater} {return ARROW;}
+{mult} { return STAR;}
+{plus} {return PLUS;}
+{div} {return DIV;}
+{forAll} {return FORALL;}
+{lambda} {return LAMBDA;}
+
+{vLine} { return VLINE;}
+
+{oParen} {return OPAREN;}
+{cParen} {return CPAREN;}
+{oBra} {return OBRA;}
+{cBra} {return CBRA;}
+{oKey} {return OKEY;}
+{cKey} {return CKEY;}
+{comma} {return COMMA;}
+{dot} {return DOT;}
+{doubleDot} {return DDOT;}
+
+
+{ignore} 
+
+%%
