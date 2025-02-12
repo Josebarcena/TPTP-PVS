@@ -2,7 +2,7 @@ FUENTE = TFG
 PRUEBA = example.p
 LIB = lfl
 
-all: compile run
+all: compile run2
 
 all2: compile run3
 
