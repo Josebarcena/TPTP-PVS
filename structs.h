@@ -10,4 +10,5 @@ typedef struct Variable{
 
 
 void Add_Variable(Variable **head,const char *name, const char *type);
+void Free_Variables(Variable *head);
 #endif

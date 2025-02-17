@@ -4,7 +4,9 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdbool.h>
+#include <time.h>
+#include <dirent.h> 
+
 
 extern int yylineno;
 extern int yylex(void);
@@ -12,43 +14,49 @@ void yyerror (char const *);
 
 int error = 0;
 int count = 0;
+int yylinenoLast = 1;
+time_t rawtime;
+struct tm * timeinfo;
+
 Variable* head = NULL;
 
 char aux[528000];
+char *auxComment;
 char *fileName;
+char varDeclaration[528000];
 
-void Prepared_types(Variable *temp){
-    if(!strcmp(temp->type,"$int")){
-        strcpy(temp->type,"int");
-        return;
+
+char *Prepared_types(char *var){
+    if(!strcmp(var,"$int")){
+        return "int";
     }
-    if(!strcmp(temp->type,"$tType")){
-        strcpy(temp->type,"TYPE");
-        return;
+    else if(!strcmp(var,"$tType") | !strcmp(var,"$i")){
+        return "TYPE";
     }
-    if(!strcmp(temp->type,"$o")){
-        strcpy(temp->type,"bool");
-        return;
+    else if(!strcmp(var,"$o")){
+        return "bool";
     }
-    if(!strcmp(temp->type,"$rat")){
-        strcpy(temp->type,"rat");
-        return;
+    else if(!strcmp(var,"$rat")){
+        return "rat";
     }
-    if(!strcmp(temp->type,"$str")){
-        strcpy(temp->type,"string");
-        return;
+    else if(!strcmp(var,"$str")){
+        return "string";
+    }
+    else if(!strcmp(var,"$real")){
+        return "real";
+    }
+    else{ 
+        return strdup(var + 1);
     }
 }
 
 char *Prepare_ListVar() {
-    char *varDeclaration = malloc(128000);
     if (!varDeclaration) return NULL;
-    strcpy(varDeclaration, "\%-------VARs-------\n");
+    strcpy(varDeclaration, "\n");
     
     Variable *temp = head;
     char result[2048] = "";
     
-    // Almacén temporal para agrupar variables por tipo
     typedef struct TypeGroup {
         char type[50];
         char names[1024];
@@ -68,7 +76,7 @@ char *Prepare_ListVar() {
             tg = tg->next;
         }
         
-        if (!tg) { // Si no se encontró, agregar un nuevo tipo
+        if (!tg) {
             TypeGroup *newGroup = (TypeGroup *)malloc(sizeof(TypeGroup));
             strcpy(newGroup->type, temp->type);
             strcpy(newGroup->names, temp->name);
@@ -78,11 +86,10 @@ char *Prepare_ListVar() {
         temp = temp->next;
     }
     
-    // Construcción del resultado final
     TypeGroup *tg = typeHead;
     while (tg) {
         strcat(result, tg->names);
-        strcat(result, " : ");
+        strcat(result, " : VAR ");
         strcat(result, tg->type);
         strcat(result, "\n");
         
@@ -92,8 +99,8 @@ char *Prepare_ListVar() {
     }
     
     strcat(varDeclaration, result);
-    strcat(varDeclaration, "\%------------------\n");
-    
+    strcat(varDeclaration, "\n");
+
     return varDeclaration;
 }
 
@@ -107,56 +114,96 @@ char *Prepare_ListVar() {
 }
 
 
-%token OPAREN CPAREN OBRA CBRA OKEY CKEY COMMA DOT DDOT
-%token THF
+%token OPAREN CPAREN OBRA CBRA OKEY CKEY COMMA DOT DDOT DIV OBLOCK CBLOCK
+%token THF TFF
 %token AXIOM HYPOTHESIS DEFINITION LEMMA THEOREM CONJECTURE NEGATEDCONJ TYPE ASSUMPTION PLAIN UNKNOWN
 %token EQUAL_COMB DESCRIPTION_COMB CHOICE_COMB EXISTS_COMB FORALL_COMB
 %token DESCRIPTION CHOICE LAMBDA EXISTS FORALL GENTZ_ARROW ARROW APPLICATION AND VLINE
 %token UNARY_CONNECTIVE ASSIGNMENT IMPLIES IFF INFIX_EQUALITY INFIX_INEQUALITY SUBTYPE_SIGN
 %token NIFF NOR NAND
 %token TYPED_EXISTS TYPED_FORALL
-%token LET DOLLAR_COND
-%token PLUS STAR DIV
+%token LET LET1 LET2 DOLLAR_COND
+%token PLUS STAR
 
-%token <valChar> VAR DOLLAR_WORD FUNCTOR DISTINCT_OBJECT NUMBER
+%token <valChar> VAR DOLLAR_WORD FUNCTOR DISTINCT_OBJECT NUMBER SYSTEM_CONSTANT COMMENT
 
+%type <valChar> thf_annotated
 %type <valChar> thf_xprod_type thf_unitary_type thf_unitary_formula thf_atom thf_function thf_quantifier thf_pair_connective thf_quantified_formula thf_unary_formula thf_conditional
 %type <valChar> thf_let thf_tuple thf_unary_connective thf_logic_formula thf_formula_list thf_sequent thf_union_type thf_mapping_type thf_binary_type thf_apply_type thf_apply_formula
 %type <valChar> thf_top_level_type thf_subtype thf_typeable_formula thf_arguments thf_formula thf_typed_variable thf_variable thf_variable_list thf_quantification thf_and_formula
-%type <valChar> thf_or_formula thf_conn_term thf_binary_tuple thf_binary_pair thf_type_formula thf_binary_formula thf_annotated annotated_formula tptp_file tptp_input comments comments_right
+%type <valChar> thf_or_formula thf_conn_term thf_binary_tuple thf_binary_pair thf_type_formula thf_binary_formula annotated_formula tptp_file tptp_input
 
 %type <valChar> fof_quantifier th0_quantifier th1_quantifier th1_unary_connective
 
 %type <valChar> binary_connective atom untyped_atom constant defined_term type assoc_connective
 
+%type <valChar> comments_text comments comment_atom
 
 %start S
 
 %%
-S: tptp_file {strcpy(aux,Prepare_ListVar()); printf("%s : THEORY \n \tBEGIN", fileName);
+S: tptp_file {strcpy(aux,Prepare_ListVar()); printf("%c  Creation-Date: %s", 37, asctime(timeinfo));
+                                             printf("%s \n", auxComment);
+                                             printf("%s : THEORY \n \tBEGIN", fileName);
                                              printf("\n%s",aux);
                                              printf("\n%s", $1); 
-                                             printf("\n\tEND %s",fileName);}
+                                             printf("\n\tEND %s",fileName);
+                                             Free_Variables(head);
+                                             free($1);
+            }
     ;
 
 tptp_file: tptp_input tptp_file {snprintf(aux,sizeof(aux),"%s  %s",$1, $2);
-                                 $$ = strdup(aux);}
+                                 $$ = strdup(aux); free($1); free($2);}
     | tptp_input {$$ = $1;}
     ;
 
-tptp_input: annotated_formula {$$ = $1;}
+tptp_input: annotated_formula {$$ = $1; }
 //	| include
-    | comments {$$ = $1;}
+    | comments {$$ = strdup(""); if(auxComment == NULL) auxComment = strdup($1);
+                                 else{
+                                    char *temp;
+                                    asprintf(&temp, "%s%s", auxComment, $1);
+                                    free(auxComment);
+                                    auxComment = temp;
+                                }
+                }
 	;
-comments: DIV comments_right {$$ = strdup("");}
+comments: DIV comments_text {if((yylineno - 1) == yylinenoLast){ 
+                                yylinenoLast = yylineno;
+                                snprintf(aux,sizeof(aux),"%c %s\n",37, $2);
+                                $$ = aux;}
+                            else { $$ = "";}
+                            }
+    | OBLOCK comments_text CBLOCK {if((yylineno - 1) == yylinenoLast){
+                                    yylinenoLast = yylineno;
+                                    snprintf(aux,sizeof(aux),"%c %s\n",37, $2);
+                                    free($$); $$ = aux;}
+                                else {free($$); $$ = strdup("");}
+                            }
+
     ;
 
-comments_right: {$$ = strdup("");}
+comments_text: comments_text comment_atom  {snprintf(aux,sizeof(aux),"%s %s",$1, $2);
+                                $$ = strdup(aux);}
+    | comment_atom {snprintf(aux,sizeof(aux)," %s", $1);
+                                $$ = strdup(aux);}
+    ;
+
+comment_atom: VAR {$$ = $1;}
+    | FUNCTOR {$$ = $1;}
+    | DISTINCT_OBJECT { $$ = $1;}
+    | NUMBER { $$ = $1;}
+    | SYSTEM_CONSTANT { $$ = $1;}
+    | COMMENT { $$ = $1;}
+    | DDOT { $$ = ":";}
+    | DOT { $$ = ".";}
     ;
 
 annotated_formula: thf_annotated {if(strcmp($1,"")) $$ = $1;
                                     else $$ = strdup("");}
-//	| tff_annotated
+//	| tff_annotated  {if(strcmp($1,"")) $$ = $1;
+//                                    else $$ = strdup("");}
 //	| fof_annotated
 //	| cnf_annotated
 	;
@@ -177,9 +224,22 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                                 $$ = strdup(aux);}}
 	;
 
-//tff_annotated: TFF OPAREN NAME COMMA type COMMA tff_formula CPAREN
-//	;
-
+/*tff_annotated: TFF OPAREN FUNCTOR COMMA type COMMA tff_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
+                                                                           Add_Variable(&head,$7,$5);
+                                                                            $$ = strdup("");
+                                                                           }
+                                                                         else{
+                                                                              snprintf(aux,sizeof(aux),"\n%s : %s \n \t%s \n", $3, $5, $7);
+                                                                               $$ = strdup(aux); printf("%s",aux);}}
+	| TFF OPAREN NUMBER COMMA type COMMA tff_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
+                                                                            Add_Variable(&head,$7,$5);
+                                                                            $$ = strdup("");
+                                                                            }
+                                                                           else{
+                                                                                snprintf(aux,sizeof(aux),"\n%s : %s \n \t%s \n", $3, $5, $7);
+                                                                                $$ = strdup(aux);}}
+    ;
+*/
 //fof_annotated: FOF OPAREN NAME COMMA type COMMA fof_formula CPAREN
 //	;
 
@@ -204,8 +264,8 @@ thf_formula: thf_logic_formula {$$ = $1; /* char comes from thf_logic_formula*/}
 	;
 
 
-thf_logic_formula: thf_binary_formula {$$ = $1; /* char comes from thf_binary_formula*/}
-    | thf_unitary_formula {$$ = $1; /* char comes from thf_unitary_formula*/}
+thf_logic_formula: thf_binary_formula { $$ = $1; /* char comes from thf_binary_formula*/}
+    | thf_unitary_formula { $$ = $1; /* char comes from thf_unitary_formula*/}
     | thf_type_formula {$$ = $1; /* char comes from type_formula*/}
     | thf_subtype {$$ = $1; /* char comes from subtype*/}
     ;
@@ -265,7 +325,7 @@ thf_variable_list: thf_variable COMMA thf_variable_list {snprintf(aux, sizeof(au
     | thf_variable {$$ = $1; /*sending up the var */}
     ;
 
-thf_variable: thf_typed_variable 
+thf_variable: thf_typed_variable {$$ = $1; /* convert bottom of the tree to PVS syntax */}
     | VAR {$$ = $1; /* convert bottom of the tree to PVS syntax */}
     ;
 
@@ -280,15 +340,16 @@ thf_unary_formula: thf_unary_connective OPAREN thf_logic_formula CPAREN {snprint
 
 thf_atom: thf_function {$$ = $1; /*sending up the needed part of the term*/}
     | VAR {$$ = $1; /*sending up the var */}
-    | defined_term {$$ = $1; /*sending up the needed part of the term*/}
+    | defined_term { $$ = $1; /*sending up the needed part of the term*/}
     | thf_conn_term {snprintf(aux, sizeof(aux),"(%s)", $1);
                      $$ = strdup(aux); /*sending up the needed part of the term*/}
     ;
 
-thf_function: atom {$$ = $1; /*we send up the atom*/}
-    | FUNCTOR OPAREN thf_arguments CPAREN {$$ = $1; /*we send the functor (save arguments name 
-                                                    in correct place)*/}
-    | DOLLAR_WORD OPAREN thf_arguments CPAREN {$$ = $1; /*we send up the dollar_word (save arguments name 
+thf_function: atom {$$ = $1; /*we send up the atom*/} /***AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII ESTAS REGLAS (THF_ARGUMENTS)***/
+    | FUNCTOR OPAREN thf_arguments CPAREN {snprintf(aux, sizeof(aux),"%s (%s)",$1, $3); 
+                                                    $$ = strdup(aux);}
+    | DOLLAR_WORD OPAREN thf_arguments CPAREN {snprintf(aux, sizeof(aux),"%s (%s)", Prepared_types($1), $3); 
+                                                    $$ = strdup(aux); /*we send up the dollar_word (save arguments name 
                                                     in correct place)*/}
     ;
 
@@ -301,7 +362,7 @@ thf_conditional: DOLLAR_COND OPAREN thf_logic_formula COMMA thf_logic_formula CO
                                         $$ = strdup(aux); /*we parser IF THEN ELSE --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
-thf_let: LET OPAREN thf_unitary_formula COMMA thf_formula CPAREN {snprintf(aux, sizeof(aux),"let(%s) IN %s", $3, $5);
+thf_let: LET OPAREN thf_unitary_formula COMMA thf_formula CPAREN { snprintf(aux, sizeof(aux),"let(%s) IN %s", $3, $5);
                                         $$ = strdup(aux); /*we parser let --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
@@ -313,9 +374,9 @@ thf_type_formula: thf_typeable_formula DDOT thf_top_level_type {$$ = $1; /*we se
                                                                 Add_Variable(&head, $1, $3);}
     ;
 
-thf_typeable_formula: thf_atom
-    | OPAREN thf_logic_formula CPAREN {snprintf(aux, sizeof(aux),"(%s)", $2);
-                                        $$ = strdup(aux); /*we parser types --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
+thf_typeable_formula: thf_atom {$$ = $1; /* convert bottom of the tree to PVS syntax */}
+    | OPAREN thf_logic_formula CPAREN { snprintf(aux, sizeof(aux),"(%s)", $2);
+                                        $$ = aux; /*we parser types --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
 thf_subtype: thf_atom SUBTYPE_SIGN thf_atom { snprintf(aux, sizeof(aux),"%s: > %s", $1, $3);
@@ -370,7 +431,7 @@ thf_tuple: OBRA CBRA { $$ = strdup("[]"); /*we parser the empty bracket formula 
     ;
 
 thf_formula_list: thf_logic_formula {$$ = $1; /* in this case we send directly the formula */}
-    | thf_logic_formula COMMA thf_logic_formula { snprintf(aux, sizeof(aux),"%s , %s", $1, $3);
+    | thf_logic_formula COMMA thf_formula_list { snprintf(aux, sizeof(aux),"%s , %s", $1, $3);
                                         $$ = strdup(aux); /*we parser the , formula */}
     ;
 
@@ -398,7 +459,7 @@ thf_pair_connective: INFIX_EQUALITY {$$ = strdup(" = "); /* --CHECK AGAIN!! MAYB
     | ASSIGNMENT { $$ = strdup(":"); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
-thf_unary_connective: UNARY_CONNECTIVE {}
+thf_unary_connective: UNARY_CONNECTIVE {{$$ = strdup("HOLA"); /* convert bottom of the tree to PVS syntax */}}
     | th1_unary_connective {$$ = $1; /**/}
     ;
 th1_unary_connective: FORALL_COMB { $$ = strdup("FORALL"); /* bottom of the tree we save here the token*/}
@@ -410,7 +471,7 @@ th1_unary_connective: FORALL_COMB { $$ = strdup("FORALL"); /* bottom of the tree
 
 // LANGUAGE WORDS
 atom: untyped_atom {$$ = $1; /*send up the functor*/}
-    | DOLLAR_WORD {$$ = $1; /* bottom of the tree we save here the token*/}
+    | DOLLAR_WORD {$$ = Prepared_types($1); /* bottom of the tree we save here the token*/}
     ;
 
 untyped_atom: constant {$$ = $1; /* we send up the FUNCTOR */}
@@ -419,12 +480,12 @@ untyped_atom: constant {$$ = $1; /* we send up the FUNCTOR */}
 constant: FUNCTOR {$$ = $1; /*bottom of the tree we save here the token*/}
     ;
 
-defined_term: NUMBER {$$ = $1; /*bottom of the tree we save here the token*/}
+defined_term: NUMBER { $$ = $1; /*bottom of the tree we save here the token*/}
     | DISTINCT_OBJECT {$$ = $1; /*bottom of the tree we save here the token*/}
     ;
 
 binary_connective: IFF {$$ = strdup(" = "); /*we convert the token to PVS*/}
-    | IMPLIES {$$ = strdup(" => "); /* --WARNING - NOT DIRECT CONVERSION-- */}
+    | IMPLIES {$$ = strdup(" IMPLIES "); /* --WARNING - NOT DIRECT CONVERSION-- */}
     | NIFF {$$ = strdup("NIFF"); /* --WARNING - NOT DIRECT CONVERSION-- */}
     | NOR {$$ = strdup("NOR"); /* --WARNING - NOT DIRECT CONVERSION--  */}
     | NAND {$$ = strdup("NAND"); /* --WARNING - NOT DIRECT CONVERSION--  */}
@@ -436,54 +497,75 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 
 %%
 
-int main(int argc, char *argv[]) {
-char outputFileName[25];
-FILE *outputFile;
-extern FILE *yyin;
-
-	switch (argc) {
-		case 1:	yyin=stdin;
-			// We create an Output File
-            strncpy(outputFileName, "Output", sizeof(outputFileName) - 5);
-            outputFileName[sizeof(outputFileName) - 5] = '\0';
-            strcat(outputFileName, ".pvs");
-
+void ProcessFile(char *file, FILE **yyin){
+    FILE *outputFile;
+    char outputFileName [1024];
+    *yyin = fopen(file, "r");
+        if (*yyin == NULL) {
+            printf("ERROR: File cant be opened.\r\n");
+        }
+        else {
+            snprintf(outputFileName,sizeof(outputFileName), "%s.pvs", file);
+            fileName = strdup(file);
             outputFile = freopen(outputFileName, "w", stdout);
             if (outputFile == NULL) {
-                printf("ERROR: No se ha podido crear el archivo de salida.\n");
-                fclose(yyin);
-                return 1;
-            }
+                printf("ERROR: OutputFile cant be created.\n");
+                fclose(*yyin);
+                return;
+            }            
             yyparse();
             fclose(outputFile);
-			break;
-		case 2: yyin = fopen(argv[1], "r");
-			if (yyin == NULL) {
-				printf("ERROR: No se ha podido abrir el fichero.\r\n");
-			}
-			else {
-                    strncpy(outputFileName, argv[1], strlen(argv[1]) - 2);
-                    outputFileName[strlen(argv[1]) - 2] = '\0';
-                    fileName = strdup(outputFileName);
-
-                    strcat(outputFileName, ".pvs");
-
-                    outputFile = freopen(outputFileName, "w", stdout);
-                    if (outputFile == NULL) {
-                        printf("ERROR: No se ha podido crear el archivo de salida.\n");
-                        fclose(yyin);
-                        return 1;
-                    }            
-				yyparse();
-                fclose(outputFile);
-				fclose(yyin);
-			}
-			break;
-		default: printf("ERROR: Demasiados argumentos.\nSintaxis: %s [fichero_entrada]\n\n", argv[0]);
-	}
-
-	return 0;
+            fclose(*yyin);
+        }
 }
+
+int main(int argc, char *argv[]) {
+    extern FILE *yyin;
+
+    time ( &rawtime );
+    timeinfo = localtime ( &rawtime );
+
+        switch (argc) {
+            case 1:	
+                yyin=stdin;
+                fileName = strdup("EXAMPLE.pvs");
+                yyparse();
+                break;
+            case 2: 
+                printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
+                break;
+            case 3: 
+                if(strcmp(argv[1],"-f") == 0){
+                    ProcessFile(argv[2], &yyin);
+                    break;
+                }
+                else if(strcmp(argv[1],"-d") == 0){
+                    struct dirent *de;
+                    DIR *dr = opendir(argv[2]);
+                    char fullPath[1024];
+                    if (dr == NULL){ 
+                        printf("Could not open current directory" ); 
+                        break;
+                    }
+                    while ((de = readdir(dr)) != NULL){
+                        if(strcmp(de->d_name,".") != 0 && strcmp(de->d_name,"..") != 0){
+                            snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);
+                            ProcessFile(fullPath, &yyin);
+                        }
+                    }
+                    break;
+                }
+                else{  
+                    printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
+                    break;
+                }
+                break;
+            default: printf("ERROR: too many arguments.\nSyntax: %s [Input_file]\n\n", argv[0]);
+        }
+
+        return 0;
+}
+
 
 
 void yyerror (char const *message) { fprintf (stderr, "%s\r\n", message);}

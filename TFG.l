@@ -29,7 +29,7 @@ negationExtendedForm "nxf"
 normalizedTypedForm "ntf"
 letterMinus [a-z]
 letterMayus [A-Z]
-numeric [0-9]
+numeric -?[0-9]
 symbolsVar [_]
 Alpha_numeric ([a-zA-Z0-9_])
 
@@ -73,8 +73,10 @@ hash "#"
 lambda "^"
 dollar "$"
 div "%"
+oBlock "/*"
+cBlock "*/"
 
-upperWord {letterMayus}({Alpha_numeric}*)
+upperWord -?{letterMayus}({Alpha_numeric}*)
 lowerWord {letterMinus}({Alpha_numeric}*)
 dollarWord {dollar}({Alpha_numeric}+)
 dollarDollarWord {dollar}{dollar}({Alpha_numeric}+)
@@ -84,6 +86,8 @@ distinctObject """ [A-z] """
 systemConstant {dollarDollarWord}
 
 let {dollar}"let"
+let1 {dollar}"letft"
+let2 {dollar}"lettt"
 
 oParen "("
 cParen ")"
@@ -96,10 +100,11 @@ dot "."
 doubleDot ":"
 
 
-ignore .|[-\s\n\r\t]
+ignore .|[-\s\n\t]
 
 %%
 {typedHighLogic} { return THF;}
+{typedFirstLogic} { return TFF;}
 
 {axiom} { return AXIOM;}
 {hypothesis} { return HYPOTHESIS;}
@@ -114,12 +119,15 @@ ignore .|[-\s\n\r\t]
 {unknown} { return UNKNOWN;}
 
 {let} {return LET;}
+{let1} {return LET1;}
+{let2} {return LET2;}
 
 {var} { yylval.valChar = strdup(yytext); return VAR;}
-{functor} { yylval.valChar = strdup(yytext); return FUNCTOR;}
+{functor} {yylval.valChar = strdup(yytext); return FUNCTOR;}
 {dollarWord} { yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
+{systemConstant} { yylval.valChar = strdup(yytext); return SYSTEM_CONSTANT;}
 {distinctObject} {yylval.valChar = strdup(yytext); return DISTINCT_OBJECT;}
-{numeric} {yylval.valInt = atoi(yytext); return NUMBER;}
+{numeric}+ { yylval.valChar = strdup(yytext); return NUMBER;}
 
 {infixInequality} {return INFIX_INEQUALITY;}
 {iff} {return IFF;}
@@ -155,6 +163,8 @@ ignore .|[-\s\n\r\t]
 {comma} {return COMMA;}
 {dot} {return DOT;}
 {doubleDot} {return DDOT;}
+{oBlock} {return OBLOCK;}
+{cBlock} {return CBLOCK;}
 
 
 {ignore} 
