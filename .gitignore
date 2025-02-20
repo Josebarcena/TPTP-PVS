@@ -1,0 +1,6 @@
+TFG.tab.c
+*.p
+*.pvs
+*.output
+examples/
+Output/
