@@ -1,5 +1,5 @@
 FUENTE = TFG
-PRUEBA = example1.p
+PRUEBA = examples/example1.p
 LIB = lfl
 
 all: compile run2

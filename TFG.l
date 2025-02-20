@@ -76,6 +76,7 @@ div "%"
 oBlock "/*"
 cBlock "*/"
 
+includeFile '([A-Za-z0-9.-]("/"[A-Za-z0-9.-])?)+'
 upperWord -?{letterMayus}({Alpha_numeric}*)
 lowerWord {letterMinus}({Alpha_numeric}*)
 dollarWord {dollar}({Alpha_numeric}+)
@@ -85,6 +86,7 @@ functor {lowerWord}
 distinctObject """ [A-z] """
 systemConstant {dollarDollarWord}
 
+include "include"
 let {dollar}"let"
 let1 {dollar}"letft"
 let2 {dollar}"lettt"
@@ -118,16 +120,18 @@ ignore .|[-\s\n\t]
 {plain} { return PLAIN;}
 {unknown} { return UNKNOWN;}
 
+{include} {return INCLUDE_HEADER;}
 {let} {return LET;}
 {let1} {return LET1;}
 {let2} {return LET2;}
 
-{var} { yylval.valChar = strdup(yytext); return VAR;}
-{functor} {yylval.valChar = strdup(yytext); return FUNCTOR;}
-{dollarWord} { yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
-{systemConstant} { yylval.valChar = strdup(yytext); return SYSTEM_CONSTANT;}
-{distinctObject} {yylval.valChar = strdup(yytext); return DISTINCT_OBJECT;}
-{numeric}+ { yylval.valChar = strdup(yytext); return NUMBER;}
+{includeFile} {yylval.valChar = strdup(yytext); return INCLUDE_FILE;}
+{var} {yylval.valChar = strdup(yytext); return VAR;}
+{functor} {yylval.valChar = strdup(yytext);  return FUNCTOR;}
+{dollarWord} {yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
+{systemConstant} {yylval.valChar = strdup(yytext); return SYSTEM_CONSTANT;}
+{distinctObject} {yylval.valChar = strdup(yytext);  return DISTINCT_OBJECT;}
+{numeric}+ {yylval.valChar = strdup(yytext); return NUMBER;}
 
 {infixInequality} {return INFIX_INEQUALITY;}
 {iff} {return IFF;}
@@ -165,7 +169,6 @@ ignore .|[-\s\n\t]
 {doubleDot} {return DDOT;}
 {oBlock} {return OBLOCK;}
 {cBlock} {return CBLOCK;}
-
 
 {ignore} 
 
