@@ -3,7 +3,11 @@
 #include "structs.h"
 #include "TFG.tab.h"
 
+static int firstToken = 1; // Bandera para detectar el primer token
 
+void reset_firstToken() {
+    firstToken = 1;
+}
 
 %}
 %option yylineno
@@ -72,9 +76,8 @@ exists "?"
 hash "#"
 lambda "^"
 dollar "$"
-div "%"
-oBlock "/*"
-cBlock "*/"
+div "%".*
+multiBlock [/][*][^*]*[*]+([^*/][^*]*[*]+)*[/]
 
 includeFile '([A-Za-z0-9.-]("/"[A-Za-z0-9.-])?)+'
 upperWord -?{letterMayus}({Alpha_numeric}*)
@@ -105,8 +108,8 @@ doubleDot ":"
 ignore .|[-\s\n\t]
 
 %%
-{typedHighLogic} { return THF;}
-{typedFirstLogic} { return TFF;}
+{typedHighLogic} { firstToken = 0; return THF;}
+{typedFirstLogic} {firstToken = 0; return TFF;}
 
 {axiom} { return AXIOM;}
 {hypothesis} { return HYPOTHESIS;}
@@ -125,8 +128,16 @@ ignore .|[-\s\n\t]
 {let1} {return LET1;}
 {let2} {return LET2;}
 
+{div} {if(firstToken){ 
+        yylval.valChar = strdup(yytext); 
+        return DIV;}}
+{multiBlock} {if(firstToken){
+        yylval.valChar = strdup(yytext);
+        return MULTIBLOCK;}}
+
+
 {includeFile} {yylval.valChar = strdup(yytext); return INCLUDE_FILE;}
-{var} {yylval.valChar = strdup(yytext); return VAR;}
+{var} { yylval.valChar = strdup(yytext); return VAR;}
 {functor} {yylval.valChar = strdup(yytext);  return FUNCTOR;}
 {dollarWord} {yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
 {systemConstant} {yylval.valChar = strdup(yytext); return SYSTEM_CONSTANT;}
@@ -152,7 +163,6 @@ ignore .|[-\s\n\t]
 {greater} {return ARROW;}
 {mult} { return STAR;}
 {plus} {return PLUS;}
-{div} {return DIV;}
 {forAll} {return FORALL;}
 {lambda} {return LAMBDA;}
 
@@ -167,9 +177,6 @@ ignore .|[-\s\n\t]
 {comma} {return COMMA;}
 {dot} {return DOT;}
 {doubleDot} {return DDOT;}
-{oBlock} {return OBLOCK;}
-{cBlock} {return CBLOCK;}
 
 {ignore} 
-
 %%

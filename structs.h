@@ -1,3 +1,4 @@
+#include <stdio.h>
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
@@ -13,6 +14,11 @@ typedef struct TypeGroup {
     char type[50];
     struct TypeGroup *next;
 } TypeGroup;
+
+typedef struct {
+    FILE *yyin;
+    char *fullPath;
+} ThreadArgs;
 
 void Add_Variable(Variable **head,const char *name, const char *type);
 void Free_Variables(Variable *head);

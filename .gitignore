@@ -4,3 +4,7 @@ TFG.tab.c
 *.output
 examples/
 Output/
+lex.yy.c
+THF.files
+TFG.tab.h
+TFG

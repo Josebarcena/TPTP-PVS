@@ -18,12 +18,12 @@
 
 extern int yylineno;
 extern int yylex(void);
+extern void reset_firstToken(void);
 extern void yylex_destroy(void);
 void yyerror (char const *);
 
 int error = 0;
 int count = 0;
-int yylinenoLast = 1;
 time_t rawtime;
 struct tm * timeinfo;
 
@@ -107,6 +107,7 @@ char *Prepare_ListVar() {
     TypeGroup *tg = typeHead;
     while (tg) {
         if (strlen(result) + strlen(tg->names) + strlen(tg->type) + 10 < sizeof(result)) { 
+            strcat(result, "!VARS! ");
             strcat(result, tg->names);
             strcat(result, " : VAR ");
             strcat(result, tg->type);
@@ -136,7 +137,7 @@ char *Prepare_ListVar() {
 }
 
 
-%token OPAREN CPAREN OBRA CBRA OKEY CKEY COMMA DOT DDOT DIV OBLOCK CBLOCK
+%token OPAREN CPAREN OBRA CBRA OKEY CKEY COMMA DOT DDOT
 %token THF TFF
 %token AXIOM HYPOTHESIS DEFINITION LEMMA THEOREM CONJECTURE NEGATEDCONJ TYPE ASSUMPTION PLAIN UNKNOWN
 %token EQUAL_COMB DESCRIPTION_COMB CHOICE_COMB EXISTS_COMB FORALL_COMB
@@ -147,7 +148,7 @@ char *Prepare_ListVar() {
 %token LET LET1 LET2 DOLLAR_COND INCLUDE_HEADER
 %token PLUS STAR 
 
-%token <valChar> VAR DOLLAR_WORD FUNCTOR DISTINCT_OBJECT NUMBER SYSTEM_CONSTANT COMMENT INCLUDE_FILE
+%token <valChar> VAR DOLLAR_WORD FUNCTOR DISTINCT_OBJECT NUMBER SYSTEM_CONSTANT COMMENT INCLUDE_FILE DIV MULTIBLOCK
 
 %type <valChar> thf_annotated
 %type <valChar> thf_xprod_type thf_unitary_type thf_unitary_formula thf_atom thf_function thf_quantifier thf_pair_connective thf_quantified_formula thf_unary_formula thf_conditional
@@ -159,7 +160,7 @@ char *Prepare_ListVar() {
 
 %type <valChar> binary_connective atom untyped_atom constant defined_term type assoc_connective
 
-%type <valChar> comments_text comments comment_atom include_file
+%type <valChar> comments  include_file
 
 %start S
 
@@ -172,7 +173,6 @@ S: tptp_file {free(aux); aux = strdup(Prepare_ListVar());
                                     printf("\n%s",aux);
                                     printf("\n%s", $1);
                                     printf("\n\tEND %s",fileName);
-                                    yylinenoLast = -1;
                                     free($1);
                                     free(auxComment);
                                              
@@ -185,15 +185,13 @@ tptp_file: tptp_input tptp_file {free(aux); aux = malloc(strlen($1) + strlen($2)
     | tptp_input {$$ = strdup($1);  free($1);}
     ;
 
-tptp_input: annotated_formula {$$ = strdup($1);  free($1); 
-                                if(yylinenoLast == -1) yylinenoLast = yylineno;
+tptp_input: annotated_formula {$$ = strdup($1);  free($1); //PARSE FORMULAS
                             }
-    | INCLUDE_HEADER OPAREN include_file CPAREN DOT { free(aux); aux = malloc(strlen($3) + 20);
+    | INCLUDE_HEADER OPAREN include_file CPAREN DOT { free(aux); aux = malloc(strlen($3) + 20); //PARSE INCLUDEES
                                     snprintf(aux, strlen($3) + 20,"\ninclude %s",$3);
                                     $$ = strdup(aux); free($3);
                                 }
-    | comments { if(yylinenoLast == -1 | (yylineno - 2) <= yylinenoLast){
-                    yylinenoLast = yylineno;
+    | comments { //WE PARSE COMMENTS
                     if(auxComment == NULL){
                         auxComment = strdup($1);
                         }
@@ -204,115 +202,65 @@ tptp_input: annotated_formula {$$ = strdup($1);  free($1);
                         auxComment = strdup(temp);
                         free(temp);
                         }
-                    }
                  $$ = strdup("");
                  free($1);
-                }
+                 }
 	;
 
-include_file: INCLUDE_FILE {$$ = strdup($1);  free($1);}
+include_file: INCLUDE_FILE {$$ = strdup($1);  free($1);} //we can use this for name list includes
     ;
 
-comments: DIV {free(aux); aux = malloc(10);
-                                    snprintf(aux,10,"%c\n",37);
+comments: DIV { aux = malloc(15 + strlen($1));
+                                    snprintf(aux,15 + strlen($1),"%s\n", $1);
                                     $$ = strdup(aux);
+                                    free($1);
                             }
-    
-    | DIV comments_text {free(aux); aux = malloc(strlen($2) + 5);
-                                    snprintf(aux,strlen($2) + 5,"%c %s\n",37, $2);
-                                    $$ = strdup(aux);  free($2);
-                            }
-    | OBLOCK CBLOCK {free(aux); aux = malloc(10);
-                                    snprintf(aux,10,"%c\n",37);
+        | MULTIBLOCK { aux = malloc(15 + strlen($1));
+                                    snprintf(aux,15 + strlen($1),"%s\n", $1);
                                     $$ = strdup(aux);
-                }
-    | OBLOCK comments_text CBLOCK {free(aux); aux = malloc(strlen($2) + 5);
-                                        snprintf(aux,strlen($2) + 5,"%c %s\n",37, $2);
-                                        $$ = strdup(aux);  free($2);
-
-                                }
-
+                                    free($1);
+                    }
     ;
 
-comments_text: comments_text comment_atom  {free(aux); aux = malloc(strlen($1) + strlen($2) + 5);
-                                                snprintf(aux,strlen($1) + strlen($2) + 5,"%s %s",$1, $2);
-                                                $$ = strdup(aux);  free($1);  free($2);}
-    | comment_atom {free(aux); aux = malloc(strlen($1) + 5);
-                        snprintf(aux,strlen($1) + 5," %s ", $1);
-                        $$ = strdup(aux);  free($1);}
-    ;
-
-comment_atom: VAR {$$ = strdup($1);  free($1);}
-    | FUNCTOR {$$ = strdup($1);  free($1);}
-    | DISTINCT_OBJECT { $$ = strdup($1);  free($1);}
-    | NUMBER { $$ = strdup($1);  free($1);}
-    | SYSTEM_CONSTANT { $$ = strdup($1);  free($1);}
-    | COMMENT { $$ = strdup($1);  free($1);}
-    | DDOT { $$ = strdup(":");}
-    | DOT { $$ = strdup(".");}
-    | LAMBDA {$$ = strdup("^");}
-    | EXISTS {$$ = strdup("?");}
-    | ARROW {$$ = strdup(">");}
-    | OBRA {$$ = strdup("[");}
-    | CBRA {$$ = strdup("]");}
-    | CPAREN {$$ = strdup("(");}
-    | OPAREN {$$ = strdup(")");}
-    | AND {$$ = strdup("&");}
-    | COMMA {$$ = strdup(",");}
-    | VLINE {$$ = strdup("|");}
-    | APPLICATION {$$ = strdup("@");}
-    | IFF {$$ = strdup("<=>");}
-    | IMPLIES {$$ = strdup("=>");}
-    | INFIX_EQUALITY {$$ = strdup("=");}
-    | INFIX_INEQUALITY {$$ = strdup("!=");}
-    | NIFF {$$ = strdup("<~>");}
-    | TYPE {$$ = strdup("type");}
-    | CONJECTURE {$$ = strdup("conjecture");}
-    | STAR {$$ = strdup("*");}
-    | PLUS {$$ = strdup("+");}
-    | SUBTYPE_SIGN {$$ = strdup(":>");}
-    | FORALL {$$ = strdup("!");}
-    ;
-
-annotated_formula: thf_annotated {if(strcmp($1,"")){
-                                     $$ = strdup($1);  free($1);
-                                    }
-                                    else{
-                                         $$ = strdup("");  free($1);
-                                        }
-                                    }
+annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 //	| tff_annotated  {if(strcmp($1,"")) $$ = strdup($1);
 //                                    else $$ = strdup("");}
 //	| fof_annotated
 //	| cnf_annotated
 	;
 
-thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
+thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux); aux = malloc(strlen($3) + strlen($7) + 20);
                                                                             snprintf(aux,strlen($3) + strlen($7) + 20,"\nDT %s: TYPE = [%s]\n", $3, $7);
                                                                             $$ = strdup(aux); free($5); free($7); free($3);
                                                                             }
-                                                                            else if(strcmp($5,"DEFINITION") == 0){
+                                                                            else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux); aux = malloc(strlen($7) + 20); 
                                                                                 snprintf(aux, strlen($7) + 20,"\nDEF %s \n", $7);
                                                                                 $$ = strdup(aux); free($7); free($3); free($5);
                                                                             }
                                                                            else{
-                                                                                free(aux); aux = malloc(strlen($3) + strlen($5) + strlen($7) + 20); 
+                                                                                free(aux); aux = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
                                                                                 snprintf(aux, strlen($3) + strlen($5) + strlen($7) + 20,"\n%s : %s \n \t%s \n", $3, $5, $7);
                                                                                 $$ = strdup(aux); free($3); free($5); free($7);
                                                                             }
                                                                         }
-    | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
-                                                                            Add_Variable(&head,$7,$5);
-                                                                            $$ = strdup("");  free($7);  free($5); free($3);
+    | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
+                                                                            free(aux); aux = malloc(strlen($3) + strlen($7) + 20);
+                                                                            snprintf(aux,strlen($3) + strlen($7) + 20,"\nDT %s: TYPE = [%s]\n", $3, $7);
+                                                                            $$ = strdup(aux); free($5); free($7); free($3);
+                                                                            }
+                                                                            else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
+                                                                                free(aux); aux = malloc(strlen($7) + 20); 
+                                                                                snprintf(aux, strlen($7) + 20,"\nDEF %s \n", $7);
+                                                                                $$ = strdup(aux); free($7); free($3); free($5);
                                                                             }
                                                                            else{
-                                                                                free(aux); aux = malloc(strlen($3) + strlen($5) + strlen($7) + 20); 
+                                                                                free(aux); aux = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
                                                                                 snprintf(aux, strlen($3) + strlen($5) + strlen($7) + 20,"\n%s : %s \n \t%s \n", $3, $5, $7);
                                                                                 $$ = strdup(aux); free($3); free($5); free($7);
                                                                             }
-                                                                }
+                                                                        }
 	;
 
 /*tff_annotated: TFF OPAREN FUNCTOR COMMA type COMMA tff_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
@@ -618,6 +566,7 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 
 %%
 
+//Function to parse each file
 void ProcessFile(char *file, FILE **yyin){
     FILE *outputFile;
     char outputFileName [1024];
@@ -625,8 +574,13 @@ void ProcessFile(char *file, FILE **yyin){
     struct stat st = {0};
 
     if (stat("Output", &st) == -1) {
-            mkdir("Output", 0700); 
+        printf("Creating Output Directory...\n");
+        if (mkdir("Output", 0700) == -1) {
+            perror("ERROR: Cant create 'Output'");
+            return;
         }
+    }
+
    *yyin = fopen(file, "r");
         if (*yyin == NULL) {
             printf("ERROR: File cant be opened.\r\n");
@@ -641,18 +595,23 @@ void ProcessFile(char *file, FILE **yyin){
             
             snprintf(outputFileName,sizeof(outputFileName)+4, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
             fileName = strdup(baseName);
+            printf("Creating FILE : %s \n", outputFileName);
             outputFile = freopen(outputFileName, "w", stdout);
+
             if (outputFile == NULL) {
-                printf("ERROR: OutputFile cant be created.\n");
+                perror("ERROR: OutputFile cant be created.\n");
                 fclose(*yyin);
                 return;
             }
+            reset_firstToken();
             yyparse();
+            
             fclose(outputFile);
             free(fileName);
             fclose(*yyin);
             yylex_destroy();
         }
+    
 
     freopen("/dev/tty", "w", stdout);
     snprintf(command, sizeof(command), "python3 parser.py %s", outputFileName);
@@ -662,9 +621,9 @@ void ProcessFile(char *file, FILE **yyin){
 int main(int argc, char *argv[]) {
     extern FILE *yyin;
 
-    time ( &rawtime );
-    timeinfo = localtime ( &rawtime );
-
+    time (&rawtime);
+    timeinfo = localtime (&rawtime);
+    
         switch (argc) {
             case 1:	
                 yyin=stdin;
@@ -689,12 +648,14 @@ int main(int argc, char *argv[]) {
                         printf("Could not open current directory" ); 
                         break;
                     }
-                    while ((de = readdir(dr)) != NULL){
+                    while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
                         if(strcmp(de->d_name,".") != 0 && strcmp(de->d_name,"..") != 0){
                             snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);
-                            head = NULL;
-                            auxComment = NULL;
+                            printf("FILE: %s \n", fullPath);
+                            head = NULL;// Prepare aux type
+                            auxComment = NULL; // Prepare comments char
                             ProcessFile(fullPath, &yyin);
+
                         }
                     }
                     closedir(dr);
@@ -707,7 +668,7 @@ int main(int argc, char *argv[]) {
                 break;
             default: printf("ERROR: too many arguments.\nSyntax: %s [Input_file]\n\n", argv[0]);
         }
-        free(aux);
+        free(aux); // CLEAN THE AUX CHAR MEMORY
         return 0;
 }
 
