@@ -10,6 +10,7 @@ inside_comment_block = False
 
 pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
 
+
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
     pos = line.find(":")
     pos1 = line.find("=")
@@ -34,8 +35,6 @@ def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
 
 def VARS_PARSER(line : str) -> None: # WE CHECK IF VAR IS A FUNCTION  
     if "->" in line:
-        print("TYPE FORM: " + line)
-
         pos = line.find(":")
         defType = line[pos+1:]
         if "TYPE" in line:
@@ -82,6 +81,7 @@ with open(sys.argv[1], "r") as file:
     for line in file:
         if ": THEORY" in line or "\tEND" in line:
             aux = re.sub(r'\.([^\s]+)', '', line)
+            aux = re.sub(r'[\^\*\+]', '_', aux)
             filtered_lines.append(aux)
         
         elif line.startswith("%") or "/*" in line:
@@ -111,9 +111,9 @@ with open(sys.argv[1], "r") as file:
 
 with open(pvsFile, "w") as file:
     file.writelines(comments_lines)
-    file.write("\n\n")
+    file.write("\n")
 
     file.writelines(include_lines)
-    file.write("\n\n")
+    file.write("\n")
 
     file.writelines(filtered_lines)

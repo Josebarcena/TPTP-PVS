@@ -16,8 +16,8 @@ typedef struct TypeGroup {
 } TypeGroup;
 
 typedef struct {
-    FILE *yyin;
-    char *fullPath;
+    int numThread;
+    char *file;
 } ThreadArgs;
 
 void Add_Variable(Variable **head,const char *name, const char *type);
