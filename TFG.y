@@ -11,7 +11,6 @@
 #include <pthread.h>
 
 
-
 #ifdef _WIN32
     #include <windows.h>
     #define FILE_SEPARATOR '\\'
@@ -21,13 +20,22 @@
     #define SO 0
 #endif
 
-
 //FUNCTIONS FROM FLEX
+typedef union YYSTYPE YYSTYPE;
+typedef void *yyscan_t;
+
 extern int yylineno;
-extern int yylex(void);
+extern int yyparse(yyscan_t scanner, int thread);
+extern int yylex(yyscan_t scanner, YYSTYPE *yylval);
+extern int yylex_init(yyscan_t *scanner);
+void yyset_in(FILE *in_str, yyscan_t scanner);
+void yyset_out(FILE *in_str, yyscan_t scanner);
+FILE *yyget_out(yyscan_t scanner);
+
+
 extern void reset_firstToken(void);
-extern void yylex_destroy(void);
-void yyerror (int thread, char const *);
+extern void yylex_destroy(yyscan_t scanner);
+void yyerror (yyscan_t scanner, int thread, char const *);
 
 //C VARS
 int error = 0;
@@ -118,22 +126,28 @@ char *Prepare_ListVar(int numThread) {
         temp = temp->next;
     }
     TypeGroup *tg = typeHead;
+    result = strdup("");
     while (tg) {
-        result = malloc(25 + strlen(tg->names) + strlen(tg->type));
+        char *auxTg = strdup(result);
+        free(result);
+        result = malloc(25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type));
         if(strcmp(tg->type, "TYPE") != 0){
-            snprintf(result,25 + strlen(tg->names) + strlen(tg->type), "!VARS! %sTYPE : VAR %s\n", tg->names, tg->type);
+            snprintf(result,25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type), "%s!VARS! %s : VAR %s\n",auxTg, tg->names, tg->type);
         }
         else{
-            snprintf(result,25 + strlen(tg->names) + strlen(tg->type), "!VARS! %sTYPE : %s\n", tg->names, tg->type);
+            snprintf(result,25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type), "%s!VARS! %s : %s\n",auxTg, tg->names, tg->type);
         }
         TypeGroup *toFree = tg;
         tg = tg->next;
         free(toFree);
+        free(auxTg);
     }
+
     varDeclaration[numThread] = malloc(5 + strlen(result));
     snprintf(varDeclaration[numThread],(5 + strlen(result)), "\n%s\n", result);
 
     free(result);
+    Free_Variables(head[numThread]);
     return varDeclaration[numThread];
 }
 
@@ -142,14 +156,18 @@ char *Prepare_ListVar(int numThread) {
 
 
 %}
+
+
 %define parse.error verbose
+%define api.pure full
+
 %union{
     int valInt;
     char *valChar; 
 }
-%parse-param{
-    int thread
-}
+%lex-param { yyscan_t scanner }
+%parse-param { yyscan_t scanner }
+%parse-param{ int thread }
 
 
 %token OPAREN CPAREN OBRA CBRA OKEY CKEY COMMA DOT DDOT
@@ -180,20 +198,28 @@ char *Prepare_ListVar(int numThread) {
 %start S
 
 %%
-S: tptp_file {free(aux[thread]); aux[thread] = strdup(Prepare_ListVar(thread));
-                                printf("%c  Creation-Date: %s", 37, asctime(timeinfo));
-                                printf("%c  From-File: %s\n", 37, fileName[thread]);
-                                if(auxComment[thread] != NULL) printf("%s \n", auxComment[thread]);
-                                    printf("%s : THEORY \n \tBEGIN", fileName[thread]);
-                                    printf("\n%s",aux[thread]);
-                                    printf("\n%s", $1);
-                                    printf("\n\tEND %s",fileName[thread]);
-                                    free($1);                                             
+S: tptp_file {                  FILE *out = yyget_out(scanner);
+                                free(aux[thread]);
+                                aux[thread] = strdup(Prepare_ListVar(thread));
+                                fprintf(out,"%c--Creation-Date: %s", 37, asctime(timeinfo));
+                                fprintf(out,"%c--From-File: %s\n", 37, fileName[thread]);
+                                if(auxComment[thread] != NULL){
+                                    fprintf(out,"%s\n", auxComment[thread]);
+                                }
+                                fprintf(out,"%s : THEORY \n \tBEGIN", fileName[thread]);
+                                fprintf(out,"\n%s",aux[thread]);
+                                fprintf(out,"\n%s", $1);
+                                fprintf(out,"\n\tEND %s",fileName[thread]);
+                                free($1);
+                                free(aux[thread]);
+                                free(auxComment[thread]);
+                                free(fileName[thread]);
+                                free(varDeclaration[thread]);
             }
     ;
 
 tptp_file: tptp_input tptp_file {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($2) + 5);
-                                    snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s  %s",$1, $2);
+                                    snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s%s",$1, $2);
                                     $$ = strdup(aux[thread]); free($1); free($2);}
     | tptp_input {$$ = strdup($1);  free($1);}
     ;
@@ -223,12 +249,12 @@ tptp_input: annotated_formula {$$ = strdup($1);  free($1); //PARSE FORMULAS
 include_file: INCLUDE_FILE {$$ = strdup($1);  free($1);} //we can use this for name list includes
     ;
 
-comments: DIV { aux[thread] = malloc(15 + strlen($1));
+comments: DIV { free(aux[thread]); aux[thread] = malloc(15 + strlen($1));
                                     snprintf(aux[thread],15 + strlen($1),"%s\n", $1);
                                     $$ = strdup(aux[thread]);
                                     free($1);
                             }
-        | MULTIBLOCK { aux[thread] = malloc(15 + strlen($1));
+        | MULTIBLOCK { free(aux[thread]); aux[thread] = malloc(15 + strlen($1));
                                     snprintf(aux[thread],15 + strlen($1),"%s\n", $1);
                                     $$ = strdup(aux[thread]);
                                     free($1);
@@ -244,33 +270,33 @@ annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 
 thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 25);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"\nDT %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"DT %s: TYPE = [%s]\n", $3, $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"\nDEF %s \n", $7);
+                                                                                snprintf(aux[thread], strlen($7) + 20,"DEF %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
                                                                            else{
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
-                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n%s : %s \n \t%s \n", $3, $5, $7);
+                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n\n%s : %s \n \t%s \n", $3, $5, $7);
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
                                                                             }
                                                                         }
     | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 20);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"\nDT %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"DT %s: TYPE = [%s]\n", $3, $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"\nDEF %s \n", $7);
+                                                                                snprintf(aux[thread], strlen($7) + 20,"DEF %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
                                                                            else{
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
-                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n%s : %s \n \t%s \n", $3, $5, $7);
+                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\nFF\n%s : %s \n\t%s", $3, $5, $7);
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
                                                                             }
                                                                         }
@@ -425,12 +451,12 @@ thf_conn_term: thf_pair_connective {$$ = strdup($1); free($1); /*we send up the 
     | thf_unary_connective {$$ = strdup($1); free($1); /*we send up the connective*/}
     ;
 
-thf_conditional: DOLLAR_COND OPAREN thf_logic_formula COMMA thf_logic_formula COMMA thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 25);  
+thf_conditional: DOLLAR_COND OPAREN thf_logic_formula COMMA thf_logic_formula COMMA thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 25);
                                                                                                                 snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 25,"IF (%s) THEN (%s) else (%s)", $3, $5, $7);
                                                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);/*we parser IF THEN ELSE --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
-thf_let: LET OPAREN thf_unitary_formula COMMA thf_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + 15);  
+thf_let: LET OPAREN thf_unitary_formula COMMA thf_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + 15);
                                                                     snprintf(aux[thread], strlen($3) + strlen($5) + 15 ,"let(%s) IN %s", $3, $5);
                                                                     $$ = strdup(aux[thread]); free($3); free($5); /*we parser let --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
@@ -446,7 +472,7 @@ thf_type_formula: thf_typeable_formula DDOT thf_top_level_type {$$ = strdup($1);
 thf_typeable_formula: thf_atom {$$ = strdup($1); free($1); /* convert bottom of the tree to PVS syntax */}
     | OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);
                                             snprintf(aux[thread], strlen($2) + 5,"(%s)", $2);
-                                            $$ = strdup(aux[thread]); free($2);  /*we parser types --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
+                                            $$ = strdup(aux[thread]); free($2);/*we parser types --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
 thf_subtype: thf_atom SUBTYPE_SIGN thf_atom {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
@@ -472,12 +498,12 @@ thf_binary_type: thf_mapping_type { $$ = strdup($1); free($1); /* store in binar
 thf_mapping_type: thf_unitary_type ARROW thf_unitary_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
                                                             snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s -> %s", $1, $3);
                                                             $$ = strdup(aux[thread]); free($1); free($3);/*we parser the arrow basic formula*/}
-    | thf_unitary_type ARROW thf_mapping_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);  
+    | thf_unitary_type ARROW thf_mapping_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);
                                                 snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s -> %s", $1, $3);
                                                 $$ = strdup(aux[thread]); free($1); free($3);/*we parser the arrow compose formula*/}
     ;
 
-thf_xprod_type: thf_unitary_type STAR thf_unitary_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);  
+thf_xprod_type: thf_unitary_type STAR thf_unitary_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);
                                                             snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s * %s", $1, $3);
                                                             $$ = strdup(aux[thread]); free($1); free($3);/*we parser the star basic formula*/}
     | thf_xprod_type STAR thf_unitary_type {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
@@ -502,9 +528,9 @@ thf_sequent: thf_tuple GENTZ_ARROW thf_tuple {free(aux[thread]); aux[thread] = m
     ;
 
 thf_tuple: OBRA CBRA { $$ = strdup("[]"); /*we parser the empty bracket formula */}
-    | OBRA thf_formula_list CBRA {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);  
+    | OBRA thf_formula_list CBRA {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);
                                         snprintf(aux[thread],strlen($2) + 5,"[%s]", $2);
-                                        $$ = strdup(aux[thread]); free($2); /*we parser the bracket  formula */}
+                                        $$ = strdup(aux[thread]); free($2); /*we parser the bracket formula */}
     | OKEY CKEY { $$ = strdup("{}"); /*we parser the empty braces formula */}
     | OKEY thf_formula_list CKEY { free(aux[thread]); aux[thread] = malloc(strlen($2) + 5); 
                                         snprintf(aux[thread],strlen($2) + 5,"{%s}", $2);
@@ -522,8 +548,8 @@ thf_quantifier: fof_quantifier {$$ = strdup($1); free($1); /* we send up the sav
     | th1_quantifier {$$ = strdup($1); free($1); /* we send up the saved token */}
     ; 
 
-fof_quantifier: FORALL {$$ = strdup("FORALL "); /* convert bottom of the tree to PVS syntax  --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
-    | EXISTS {$$ = strdup("EXISTS "); /* convert bottom of the tree to PVS syntax  --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
+fof_quantifier: FORALL {$$ = strdup("FORALL "); /* convert bottom of the tree to PVS syntax --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
+    | EXISTS {$$ = strdup("EXISTS "); /* convert bottom of the tree to PVS syntax --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
     ;
 
 th0_quantifier: LAMBDA {$$ = strdup(" LAMBDA "); /* convert bottom of the tree to PVS syntax */}
@@ -531,12 +557,12 @@ th0_quantifier: LAMBDA {$$ = strdup(" LAMBDA "); /* convert bottom of the tree t
     | DESCRIPTION {$$ = strdup("APPLY"); /* --WARNING - NOT DIRECT CONVERSION-- */}
     ;
 
-th1_quantifier: TYPED_FORALL {$$ = strdup("FORALL "); /* convert bottom of the tree to PVS syntax  --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
-    |   TYPED_EXISTS  {$$ = strdup("EXISTS "); /* convert bottom of the tree to PVS syntax  --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
+th1_quantifier: TYPED_FORALL {$$ = strdup("FORALL "); /* convert bottom of the tree to PVS syntax --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
+    |   TYPED_EXISTS {$$ = strdup("EXISTS "); /* convert bottom of the tree to PVS syntax --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
     ;
 
 thf_pair_connective: INFIX_EQUALITY {$$ = strdup(" = "); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
-    | INFIX_INEQUALITY {$$ = strdup("!="); /* --WARNING - NOT DIRECT CONVERSION--  */}
+    | INFIX_INEQUALITY {$$ = strdup("!="); /* --WARNING - NOT DIRECT CONVERSION--*/}
     | binary_connective {$$ = strdup($1); free($1); /* we send up binary_connective Char */}
     | ASSIGNMENT { $$ = strdup(":"); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
@@ -569,8 +595,8 @@ defined_term: NUMBER { $$ = strdup($1);  free($1); /*bottom of the tree we save 
 binary_connective: IFF {$$ = strdup(" = "); /*we convert the token to PVS*/}
     | IMPLIES {$$ = strdup(" IMPLIES "); /* --WARNING - NOT DIRECT CONVERSION-- */}
     | NIFF {$$ = strdup("NIFF"); /* --WARNING - NOT DIRECT CONVERSION-- */}
-    | NOR {$$ = strdup("NOR"); /* --WARNING - NOT DIRECT CONVERSION--  */}
-    | NAND {$$ = strdup("NAND"); /* --WARNING - NOT DIRECT CONVERSION--  */}
+    | NOR {$$ = strdup("NOR"); /* --WARNING - NOT DIRECT CONVERSION-- */}
+    | NAND {$$ = strdup("NAND"); /* --WARNING - NOT DIRECT CONVERSION-- */}
     ;
 
 assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here the token*/}
@@ -581,20 +607,13 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 
 void InitializeVars(int numThreads){
     fileName = malloc(numThreads * sizeof(char *));
-    aux =  malloc(numThreads * sizeof(char *));
+    aux = malloc(numThreads * sizeof(char *));
     head = malloc(numThreads * sizeof(Variable));;
     auxComment = malloc(numThreads * sizeof(char *));
     varDeclaration = malloc(numThreads * sizeof(char *));
 }
 
 void FreeVars(int numThreads){
-    for(int i = 0; i<numThreads; i++){
-        free(fileName[i]);
-        free(aux[i]);
-        free(head[i]);
-        free(auxComment[i]);
-        free(varDeclaration[i]);
-    }
     free(fileName);
     free(aux);
     free(head);
@@ -605,14 +624,13 @@ void FreeVars(int numThreads){
 
 //Function to parse each file
 void *ProcessFile(void *arg){
-    extern FILE *yyin;
     FILE *outputFile;
     char outputFileName [1024];
     char command[2048];
     struct stat st = {0};
     ThreadArgs *data = (ThreadArgs *)arg;
 
-    printf("Thread %d is going to process FILE %s", data->numThread, data->file);
+    printf("Thread %d is going to process FILE %s\n", data->numThread, data->file);
     if (stat("Output", &st) == -1) {
         printf("Creating Output Directory...\n");
         if (mkdir("Output", 0700) == -1) {
@@ -621,8 +639,8 @@ void *ProcessFile(void *arg){
         }
     }
 
-   yyin = fopen(data->file, "r");
-        if (yyin == NULL) {
+   FILE *in = fopen(data->file, "r");
+        if (in == NULL) {
             printf("ERROR: File cant be opened.\r\n");
         }
         else {
@@ -636,23 +654,30 @@ void *ProcessFile(void *arg){
             snprintf(outputFileName,sizeof(outputFileName)+4, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
             fileName[data->numThread] = strdup(baseName);
             printf("Creating FILE : %s \n", outputFileName);
-            outputFile = freopen(outputFileName, "w", stdout);
+            outputFile = fopen(outputFileName, "w");
 
             if (outputFile == NULL) {
                 perror("ERROR: OutputFile cant be created.\n");
-                fclose(yyin);
+                fclose(in);
                 return 0;
             }
-            reset_firstToken();
-            yyparse(data->numThread);
-            
+            head[data->numThread] = NULL;
+            auxComment[data->numThread] = NULL;
+            aux[data->numThread] = NULL;
+
+            yyscan_t scanner;
+            yylex_init(&scanner);
+            yyset_out(outputFile, scanner);
+            yyset_in(in, scanner);
+            yyparse(scanner, data->numThread);
+
             fclose(outputFile);
-            fclose(yyin);
-            yylex_destroy();
+            fclose(in);
+
+            yylex_destroy(scanner);
         }
     
 
-    freopen("/dev/tty", "w", stdout);
     snprintf(command, sizeof(command), "python3 parser.py %s", outputFileName);
     system(command);
     pthread_exit(NULL);
@@ -660,9 +685,9 @@ void *ProcessFile(void *arg){
 
 int FindAvailableThread(int numThreads){
     pthread_mutex_lock(&availability_mutex);
-    for(int i = 0; i< numThreads; i++){
+    for(int i = 0; i < numThreads; i++){
         if(thread_available[i] == 1){
-            thread_available[i] == 0;
+            thread_available[i] = 0;
             pthread_mutex_unlock(&availability_mutex);
             return i;
         }
@@ -672,7 +697,6 @@ int FindAvailableThread(int numThreads){
 }
 
 int main(int argc, char *argv[]) {
-    extern FILE *yyin;
 
     time (&rawtime);
     timeinfo = localtime (&rawtime);
@@ -684,16 +708,25 @@ int main(int argc, char *argv[]) {
         numThreads = 1;
     }
     thread_available = malloc(numThreads * sizeof(int));
+    for(int i = 0; i < numThreads; i++){
+        thread_available[i] = 1;
+    }
+
 
     pthread_t threads[numThreads];
     pthread_mutex_init(&availability_mutex, NULL);
         switch (argc) {
             case 1:	
-                yyin=stdin;
+                FILE *in = stdin;
                 InitializeVars(1);
                 fileName[0] = strdup("TPTPS.pvs");
-                yyparse(0);
-                yylex_destroy();
+
+                yyscan_t scanner;
+                yylex_init(&scanner);
+                yyset_in(in, scanner);
+                yyparse(scanner, 0);
+                yylex_destroy(scanner);
+                fclose(in);
                 FreeVars(1);
                 break;
             case 2: 
@@ -720,7 +753,8 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     
-                    int currentThread = 0;
+                    int currentThread = FindAvailableThread(numThreads);
+                    int maxThread = currentThread;
                     ThreadArgs args[numThreads];
 
                     while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
@@ -728,19 +762,21 @@ int main(int argc, char *argv[]) {
                             snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);        
                             args[currentThread].numThread = currentThread;
                             args[currentThread].file = strdup(fullPath);
-                            if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)&args[currentThread]) == 0){
-                                char auxPerror[100];
+                            if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)&args[currentThread])){
+                                char auxPerror[8000];
                                 snprintf(auxPerror,sizeof(auxPerror),"ERROR: cannot create THREAD %d processing FILE %s", currentThread, fullPath);
                                 perror(auxPerror);
                                 exit(EXIT_FAILURE);
                             }
                             currentThread = FindAvailableThread(numThreads);
+                            
                             while(currentThread == -1){
                                 currentThread = FindAvailableThread(numThreads);
                             }
+                            maxThread = currentThread > maxThread ? currentThread : maxThread;
                         }
                     }
-                    for(int i = 0; i<numThreads; i++){
+                    for(int i = 0; i<maxThread; i++){
                         pthread_join(threads[i], NULL);
                     }
                     closedir(dr);
@@ -758,4 +794,4 @@ int main(int argc, char *argv[]) {
 
 
 
-void yyerror (char const *message) { fprintf (stderr, "%s\r\n", message);}
+void yyerror (yyscan_t scanner, int thread, const char *message) { fprintf (stderr, "%s\r\n", message);}

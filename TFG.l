@@ -11,6 +11,9 @@ void reset_firstToken() {
 
 %}
 %option yylineno
+%option reentrant
+%option bison-bridge
+
 
 axiom "axiom"
 hypothesis "hypothesis"
@@ -129,20 +132,20 @@ ignore .|[-\s\n\t]
 {let2} {return LET2;}
 
 {div} {if(firstToken){ 
-        yylval.valChar = strdup(yytext); 
+        yylval->valChar = strdup(yytext); 
         return DIV;}}
 {multiBlock} {if(firstToken){
-        yylval.valChar = strdup(yytext);
+        yylval->valChar = strdup(yytext);
         return MULTIBLOCK;}}
 
 
-{includeFile} {yylval.valChar = strdup(yytext); return INCLUDE_FILE;}
-{var} { yylval.valChar = strdup(yytext); return VAR;}
-{functor} {yylval.valChar = strdup(yytext);  return FUNCTOR;}
-{dollarWord} {yylval.valChar = strdup(yytext); return DOLLAR_WORD;}
-{systemConstant} {yylval.valChar = strdup(yytext); return SYSTEM_CONSTANT;}
-{distinctObject} {yylval.valChar = strdup(yytext);  return DISTINCT_OBJECT;}
-{numeric}+ {yylval.valChar = strdup(yytext); return NUMBER;}
+{includeFile} {yylval->valChar = strdup(yytext); return INCLUDE_FILE;}
+{var} { yylval->valChar = strdup(yytext); return VAR;}
+{functor} {yylval->valChar = strdup(yytext);  return FUNCTOR;}
+{dollarWord} {yylval->valChar = strdup(yytext); return DOLLAR_WORD;}
+{systemConstant} {yylval->valChar = strdup(yytext); return SYSTEM_CONSTANT;}
+{distinctObject} {yylval->valChar = strdup(yytext);  return DISTINCT_OBJECT;}
+{numeric}+ {yylval->valChar = strdup(yytext); return NUMBER;}
 
 {infixInequality} {return INFIX_INEQUALITY;}
 {iff} {return IFF;}
