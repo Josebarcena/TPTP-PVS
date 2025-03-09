@@ -270,12 +270,12 @@ annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 
 thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 25);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"DT %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"!DT¡ %s: TYPE = [%s]\n", $3, $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"DEF %s \n", $7);
+                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
                                                                            else{
@@ -286,17 +286,17 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                         }
     | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 20);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"DT %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s: TYPE = [%s]\n", $3, $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"DEF %s \n", $7);
+                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
                                                                            else{
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
-                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\nFF\n%s : %s \n\t%s", $3, $5, $7);
+                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n\n%s : %s \n\t%s", $3, $5, $7);
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
                                                                             }
                                                                         }
@@ -608,12 +608,12 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 void InitializeVars(int numThreads){
     fileName = malloc(numThreads * sizeof(char *));
     aux = malloc(numThreads * sizeof(char *));
-    head = malloc(numThreads * sizeof(Variable));;
+    head = malloc(numThreads * sizeof(Variable));
     auxComment = malloc(numThreads * sizeof(char *));
     varDeclaration = malloc(numThreads * sizeof(char *));
 }
 
-void FreeVars(int numThreads){
+void FreeVars(){
     free(fileName);
     free(aux);
     free(head);
@@ -622,15 +622,28 @@ void FreeVars(int numThreads){
     free(thread_available);
 }
 
+void FreeThread(int numThread){
+    pthread_mutex_lock(&availability_mutex);
+        if(thread_available[numThread] == 0){
+            thread_available[numThread] = 1;
+            pthread_mutex_unlock(&availability_mutex);
+            return;
+        }
+        else{
+            perror("ERROR: 487 ");
+            pthread_mutex_unlock(&availability_mutex);
+            return;
+        }
+    }
+
 //Function to parse each file
 void *ProcessFile(void *arg){
     FILE *outputFile;
-    char outputFileName [1024];
+    char *outputFileName;
     char command[2048];
     struct stat st = {0};
     ThreadArgs *data = (ThreadArgs *)arg;
 
-    printf("Thread %d is going to process FILE %s\n", data->numThread, data->file);
     if (stat("Output", &st) == -1) {
         printf("Creating Output Directory...\n");
         if (mkdir("Output", 0700) == -1) {
@@ -650,8 +663,8 @@ void *ProcessFile(void *arg){
             } else {
                 baseName = data->file;
             }
-            
-            snprintf(outputFileName,sizeof(outputFileName)+4, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
+            outputFileName = malloc(strlen(baseName) + 15);
+            snprintf(outputFileName,strlen(baseName) + 15, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
             fileName[data->numThread] = strdup(baseName);
             printf("Creating FILE : %s \n", outputFileName);
             outputFile = fopen(outputFileName, "w");
@@ -679,7 +692,9 @@ void *ProcessFile(void *arg){
     
 
     snprintf(command, sizeof(command), "python3 parser.py %s", outputFileName);
+    free(outputFileName);
     system(command);
+    FreeThread(data->numThread);
     pthread_exit(NULL);
 } 
 
@@ -727,7 +742,7 @@ int main(int argc, char *argv[]) {
                 yyparse(scanner, 0);
                 yylex_destroy(scanner);
                 fclose(in);
-                FreeVars(1);
+                FreeVars();
                 break;
             case 2: 
                 printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
@@ -735,11 +750,11 @@ int main(int argc, char *argv[]) {
             case 3: 
                 if(strcmp(argv[1],"-f") == 0){
                     ThreadArgs args;
-                    args.numThread = 1;
-                    args.file = strdup(argv[2]);
+                    args.numThread = FindAvailableThread(numThreads);
+                    strcpy(args.file,argv[2]);
                     InitializeVars(1);
                     ProcessFile((void *)&args);
-                    FreeVars(1);
+                    FreeVars();
                     break;
                 }
                 else if(strcmp(argv[1],"-d") == 0){
@@ -761,7 +776,7 @@ int main(int argc, char *argv[]) {
                         if(de->d_type == DT_REG){
                             snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);        
                             args[currentThread].numThread = currentThread;
-                            args[currentThread].file = strdup(fullPath);
+                            strcpy(args[currentThread].file,fullPath);
                             if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)&args[currentThread])){
                                 char auxPerror[8000];
                                 snprintf(auxPerror,sizeof(auxPerror),"ERROR: cannot create THREAD %d processing FILE %s", currentThread, fullPath);
@@ -769,7 +784,6 @@ int main(int argc, char *argv[]) {
                                 exit(EXIT_FAILURE);
                             }
                             currentThread = FindAvailableThread(numThreads);
-                            
                             while(currentThread == -1){
                                 currentThread = FindAvailableThread(numThreads);
                             }

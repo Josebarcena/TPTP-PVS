@@ -77,13 +77,14 @@ def DT_PARSER(line : str) -> None:
         filtered_lines.append(aux)
 
 
+
 with open(sys.argv[1], "r") as file:
     for line in file:
         if ": THEORY" in line or "\tEND" in line:
             aux = re.sub(r'\.([^\s]+)', '', line)
             aux = re.sub(r'[\^\*\+]', '_', aux)
             filtered_lines.append(aux)
-        
+            
         elif line.startswith("%") or "/*" in line:
             COMMENT_PARSER(line)
 
@@ -93,11 +94,11 @@ with open(sys.argv[1], "r") as file:
         elif line.startswith("!VARS!"):
             VARS_PARSER(line[7:])
 
-        elif(line.startswith("DT")):
-            DT_PARSER(line[3:])
+        elif(line.startswith("!DT¡")):
+            DT_PARSER(line[4:])
 
-        elif(line.startswith("DEF")):
-            DEF_PARSER(line[4:])
+        elif(line.startswith("!DEF¡")):
+            DEF_PARSER(line[5:])
 
         elif line.startswith("include '"):
             INCLUDE_PARSER(line)
@@ -108,6 +109,7 @@ with open(sys.argv[1], "r") as file:
         else:
             aux = re.sub(r'\s=\s', ' IFF ', line)
             filtered_lines.append(aux)
+
 
 with open(pvsFile, "w") as file:
     file.writelines(comments_lines)

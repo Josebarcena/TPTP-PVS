@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <limits.h> 
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
@@ -17,7 +18,7 @@ typedef struct TypeGroup {
 
 typedef struct {
     int numThread;
-    char *file;
+    char file[PATH_MAX];
 } ThreadArgs;
 
 void Add_Variable(Variable **head,const char *name, const char *type);
