@@ -8,7 +8,6 @@ include_lines = []
 comments_lines = []
 inside_comment_block = False
 
-pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
 
 
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
@@ -76,46 +75,50 @@ def DT_PARSER(line : str) -> None:
         aux = aux + line[line.find("]"):]
         filtered_lines.append(aux)
 
+def PostProcess(inputFile: str) -> None: #CALL MAIN FUNCTION
+    pvsFile = re.sub(r'\.([^\s]+)', '', inputFile) + ".pvs" #PVS OUTPUT FILE
+    with open(inputFile, "r") as file:
+        for line in file:
+            if ": THEORY" in line or "\tEND" in line:
+                aux = re.sub(r'\.([^\s]+)', '', line)
+                aux = re.sub(r'[\^\*\+]', '_', aux)
+                filtered_lines.append(aux)
+                
+            elif line.startswith("%") or "/*" in line:
+                COMMENT_PARSER(line)
+
+            elif inside_comment_block:
+                COMMENT_PARSER(line)
+
+            elif line.startswith("!VARS!"):
+                VARS_PARSER(line[7:])
+
+            elif(line.startswith("!DT¡")):
+                DT_PARSER(line[4:])
+
+            elif(line.startswith("!DEF¡")):
+                DEF_PARSER(line[5:])
+
+            elif line.startswith("include '"):
+                INCLUDE_PARSER(line)
+
+            elif line.isspace():
+                line.strip()
+                filtered_lines.append("\n")
+            else:
+                aux = re.sub(r'\s=\s', ' IFF ', line)
+                filtered_lines.append(aux)
 
 
-with open(sys.argv[1], "r") as file:
-    for line in file:
-        if ": THEORY" in line or "\tEND" in line:
-            aux = re.sub(r'\.([^\s]+)', '', line)
-            aux = re.sub(r'[\^\*\+]', '_', aux)
-            filtered_lines.append(aux)
-            
-        elif line.startswith("%") or "/*" in line:
-            COMMENT_PARSER(line)
+    with open(pvsFile, "w") as file:
+        file.writelines(comments_lines)
+        file.write("\n")
 
-        elif inside_comment_block:
-            COMMENT_PARSER(line)
+        file.writelines(include_lines)
+        file.write("\n")
 
-        elif line.startswith("!VARS!"):
-            VARS_PARSER(line[7:])
-
-        elif(line.startswith("!DT¡")):
-            DT_PARSER(line[4:])
-
-        elif(line.startswith("!DEF¡")):
-            DEF_PARSER(line[5:])
-
-        elif line.startswith("include '"):
-            INCLUDE_PARSER(line)
-
-        elif line.isspace():
-            line.strip()
-            filtered_lines.append("\n")
-        else:
-            aux = re.sub(r'\s=\s', ' IFF ', line)
-            filtered_lines.append(aux)
+        file.writelines(filtered_lines)
 
 
-with open(pvsFile, "w") as file:
-    file.writelines(comments_lines)
-    file.write("\n")
-
-    file.writelines(include_lines)
-    file.write("\n")
-
-    file.writelines(filtered_lines)
+if __name__ == "__main__":
+    PostProcess(sys.argv[1])

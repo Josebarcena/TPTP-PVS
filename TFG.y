@@ -1,11 +1,11 @@
 %{
 #include "structs.h"
+#include "Threads.c"
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -44,7 +44,7 @@ int *thread_available;
 int numThreads;
 time_t rawtime;
 struct tm * timeinfo;
-pthread_mutex_t availability_mutex;
+
 
 // BISON VARS
 Variable** head = NULL;
@@ -605,6 +605,16 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 
 %%
 
+
+void RunPythonScript(char *file){
+    char command[25 +strlen(file)];
+    snprintf(command, sizeof(command),"python3 parser.py %s", file);
+    if (system(command) < 0) {
+        perror("Error: failed executing python script");
+        exit(EXIT_FAILURE);
+    }
+}
+
 void InitializeVars(int numThreads){
     fileName = malloc(numThreads * sizeof(char *));
     aux = malloc(numThreads * sizeof(char *));
@@ -617,102 +627,18 @@ void FreeVars(){
     free(fileName);
     free(aux);
     free(head);
-    free(auxComment);
     free(varDeclaration);
+    free(auxComment);
     free(thread_available);
 }
 
-void FreeThread(int numThread){
-    pthread_mutex_lock(&availability_mutex);
-        if(thread_available[numThread] == 0){
-            thread_available[numThread] = 1;
-            pthread_mutex_unlock(&availability_mutex);
-            return;
-        }
-        else{
-            perror("ERROR: 487 ");
-            pthread_mutex_unlock(&availability_mutex);
-            return;
-        }
-    }
 
-//Function to parse each file
-void *ProcessFile(void *arg){
-    FILE *outputFile;
-    char *outputFileName;
-    char command[2048];
-    struct stat st = {0};
-    ThreadArgs *data = (ThreadArgs *)arg;
 
-    if (stat("Output", &st) == -1) {
-        printf("Creating Output Directory...\n");
-        if (mkdir("Output", 0700) == -1) {
-            perror("ERROR: Cant create 'Output'");
-            return 0;
-        }
-    }
 
-   FILE *in = fopen(data->file, "r");
-        if (in == NULL) {
-            printf("ERROR: File cant be opened.\r\n");
-        }
-        else {
-            char *baseName = strrchr(data->file, FILE_SEPARATOR);
-            if (baseName) {
-                baseName++;
-            } else {
-                baseName = data->file;
-            }
-            outputFileName = malloc(strlen(baseName) + 15);
-            snprintf(outputFileName,strlen(baseName) + 15, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
-            fileName[data->numThread] = strdup(baseName);
-            printf("Creating FILE : %s \n", outputFileName);
-            outputFile = fopen(outputFileName, "w");
 
-            if (outputFile == NULL) {
-                perror("ERROR: OutputFile cant be created.\n");
-                fclose(in);
-                return 0;
-            }
-            head[data->numThread] = NULL;
-            auxComment[data->numThread] = NULL;
-            aux[data->numThread] = NULL;
-
-            yyscan_t scanner;
-            yylex_init(&scanner);
-            yyset_out(outputFile, scanner);
-            yyset_in(in, scanner);
-            yyparse(scanner, data->numThread);
-
-            fclose(outputFile);
-            fclose(in);
-
-            yylex_destroy(scanner);
-        }
-    
-
-    snprintf(command, sizeof(command), "python3 parser.py %s", outputFileName);
-    free(outputFileName);
-    system(command);
-    FreeThread(data->numThread);
-    pthread_exit(NULL);
-} 
-
-int FindAvailableThread(int numThreads){
-    pthread_mutex_lock(&availability_mutex);
-    for(int i = 0; i < numThreads; i++){
-        if(thread_available[i] == 1){
-            thread_available[i] = 0;
-            pthread_mutex_unlock(&availability_mutex);
-            return i;
-        }
-    }
-    pthread_mutex_unlock(&availability_mutex);
-    return -1;
-}
 
 int main(int argc, char *argv[]) {
-
+    clock_t begin = clock();
     time (&rawtime);
     timeinfo = localtime (&rawtime);
 
@@ -726,84 +652,57 @@ int main(int argc, char *argv[]) {
     for(int i = 0; i < numThreads; i++){
         thread_available[i] = 1;
     }
-
-
     pthread_t threads[numThreads];
     pthread_mutex_init(&availability_mutex, NULL);
-        switch (argc) {
-            case 1:	
-                FILE *in = stdin;
-                InitializeVars(1);
-                fileName[0] = strdup("TPTPS.pvs");
+    
+    switch (argc) {
+        case 1:	
+            FILE *in = stdin;
+            InitializeVars(1);
+            fileName[0] = strdup("TPTPS.pvs");
 
-                yyscan_t scanner;
-                yylex_init(&scanner);
-                yyset_in(in, scanner);
-                yyparse(scanner, 0);
-                yylex_destroy(scanner);
-                fclose(in);
+            yyscan_t scanner;
+            yylex_init(&scanner);
+            yyset_in(in, scanner);
+            yyparse(scanner, 0);
+            yylex_destroy(scanner);
+            fclose(in);
+            FreeVars();
+            break;
+        case 2: 
+            printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
+            break;
+        case 3: 
+            if(strcmp(argv[1],"-f") == 0){
+                ThreadArgs args;
+                args.numThread = FindAvailableThread(numThreads);
+                strcpy(args.file,argv[2]);
+                InitializeVars(1);
+                ProcessFile((void *)&args);
                 FreeVars();
                 break;
-            case 2: 
+            }
+            else if(strcmp(argv[1],"-d") == 0){
+                DIR *dr = opendir(argv[2]);
+                char fullPath[1024];
+                InitializeVars(numThreads); //INITIALIZE VARS FOR THREADS
+                ReadDir(argv[2]);
+                FreeThreads();
+                FreeVars();
+                closedir(dr);
+                break;
+            }
+            else{  
                 printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
                 break;
-            case 3: 
-                if(strcmp(argv[1],"-f") == 0){
-                    ThreadArgs args;
-                    args.numThread = FindAvailableThread(numThreads);
-                    strcpy(args.file,argv[2]);
-                    InitializeVars(1);
-                    ProcessFile((void *)&args);
-                    FreeVars();
-                    break;
-                }
-                else if(strcmp(argv[1],"-d") == 0){
-                    struct dirent *de;
-                    DIR *dr = opendir(argv[2]);
-                    char fullPath[1024];
-                    InitializeVars(numThreads); //INITIALIZE VARS FOR THREADS
-                    
-                    if (dr == NULL){ 
-                        perror("Could not open current directory" ); 
-                        break;
-                    }
-                    
-                    int currentThread = FindAvailableThread(numThreads);
-                    int maxThread = currentThread;
-                    ThreadArgs args[numThreads];
-
-                    while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
-                        if(de->d_type == DT_REG){
-                            snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);        
-                            args[currentThread].numThread = currentThread;
-                            strcpy(args[currentThread].file,fullPath);
-                            if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)&args[currentThread])){
-                                char auxPerror[8000];
-                                snprintf(auxPerror,sizeof(auxPerror),"ERROR: cannot create THREAD %d processing FILE %s", currentThread, fullPath);
-                                perror(auxPerror);
-                                exit(EXIT_FAILURE);
-                            }
-                            currentThread = FindAvailableThread(numThreads);
-                            while(currentThread == -1){
-                                currentThread = FindAvailableThread(numThreads);
-                            }
-                            maxThread = currentThread > maxThread ? currentThread : maxThread;
-                        }
-                    }
-                    for(int i = 0; i<maxThread; i++){
-                        pthread_join(threads[i], NULL);
-                    }
-                    closedir(dr);
-                    break;
-                }
-                else{  
-                    printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
-                    break;
-                }
-                break;
-            default: printf("ERROR: too many arguments.\nSyntax: %s [Input_file]\n\n", argv[0]);
-        }
-        return 0;
+            }
+            break;
+        default: printf("ERROR: too many arguments.\nSyntax: %s [Input_file]\n\n", argv[0]);
+    }
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Execution Time: %fs \n", time_spent);
+    return 0;
 }
 
 
