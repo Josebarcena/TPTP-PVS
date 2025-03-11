@@ -35,9 +35,10 @@ def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
 
 def VARS_PARSER(line : str) -> None: # WE CHECK IF VAR IS A FUNCTION  
     if "->" in line:
+        
         pos = line.find(":")
         defType = line[pos+1:]
-        if "TYPE" in line:
+        if " TYPE " in line:
             defType = defType[5:]
         else:
             defType = defType[5:]
@@ -66,7 +67,6 @@ def COMMENT_PARSER(line: str) -> None:
 
 def DT_PARSER(line : str) -> None:
     var = re.findall(r'\[(.*?)\]', line)[0]
-
     if var in functions:
         aux = line[:line.find("[")+1]
         aux = aux + functions[var].strip()
@@ -108,6 +108,7 @@ with open(sys.argv[1], "r") as file:
             filtered_lines.append("\n")
         else:
             aux = re.sub(r'\s=\s', ' IFF ', line)
+            aux = re.sub(r'\s->\s', ' > ', line)
             filtered_lines.append(aux)
 
 

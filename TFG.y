@@ -27,6 +27,7 @@ typedef void *yyscan_t;
 extern int yylineno;
 extern int yyparse(yyscan_t scanner, int thread);
 extern int yylex(yyscan_t scanner, YYSTYPE *yylval);
+extern int yylex_init_extra(void* args, yyscan_t *scanner);
 extern int yylex_init(yyscan_t *scanner);
 void yyset_in(FILE *in_str, yyscan_t scanner);
 void yyset_out(FILE *in_str, yyscan_t scanner);
@@ -40,11 +41,13 @@ void yyerror (yyscan_t scanner, int thread, char const *);
 //C VARS
 int error = 0;
 int count = 0;
+int maxThread = 0;
 int *thread_available;
 int numThreads;
 time_t rawtime;
 struct tm * timeinfo;
 pthread_mutex_t availability_mutex;
+pthread_t *threads;
 
 // BISON VARS
 Variable** head = NULL;
@@ -60,8 +63,12 @@ char *Prepared_types(char *var){
         if(!strcmp(var,"$int")){
             return "int";
         }
-        else if(!strcmp(var,"$tType") | !strcmp(var,"$i")){
+        else if(!strcmp(var,"$tType")){
             return "TYPE";
+         
+        }
+        else if(!strcmp(var,"$i")){
+            return "nonempty_type";
         }
         else if(!strcmp(var,"$o")){
             return "bool";
@@ -622,6 +629,7 @@ void FreeVars(){
     free(thread_available);
 }
 
+
 void FreeThread(int numThread){
     pthread_mutex_lock(&availability_mutex);
         if(thread_available[numThread] == 0){
@@ -635,23 +643,30 @@ void FreeThread(int numThread){
             return;
         }
     }
+    
+int FindAvailableThread(int numThreads){
+    pthread_mutex_lock(&availability_mutex);
+    for(int i = 0; i < numThreads; i++){
+        if(thread_available[i] == 1){
+            thread_available[i] = 0;
+            pthread_mutex_unlock(&availability_mutex);
+            return i;
+        }
+    }
+    pthread_mutex_unlock(&availability_mutex);
+    return -1;
+}
+
 
 //Function to parse each file
 void *ProcessFile(void *arg){
     FILE *outputFile;
     char *outputFileName;
     char command[2048];
-    struct stat st = {0};
+    int first_token_flex = 1;
     ThreadArgs *data = (ThreadArgs *)arg;
 
-    if (stat("Output", &st) == -1) {
-        printf("Creating Output Directory...\n");
-        if (mkdir("Output", 0700) == -1) {
-            perror("ERROR: Cant create 'Output'");
-            return 0;
-        }
-    }
-
+    //printf("Processing FILE : %s \n",data->file);
    FILE *in = fopen(data->file, "r");
         if (in == NULL) {
             printf("ERROR: File cant be opened.\r\n");
@@ -677,9 +692,10 @@ void *ProcessFile(void *arg){
             head[data->numThread] = NULL;
             auxComment[data->numThread] = NULL;
             aux[data->numThread] = NULL;
+            
 
             yyscan_t scanner;
-            yylex_init(&scanner);
+            yylex_init_extra(&first_token_flex, &scanner);
             yyset_out(outputFile, scanner);
             yyset_in(in, scanner);
             yyparse(scanner, data->numThread);
@@ -692,29 +708,66 @@ void *ProcessFile(void *arg){
     
 
     snprintf(command, sizeof(command), "python3 parser.py %s", outputFileName);
-    free(outputFileName);
     system(command);
+
+    free(outputFileName);
     FreeThread(data->numThread);
+    free(data);
     pthread_exit(NULL);
 } 
 
-int FindAvailableThread(int numThreads){
-    pthread_mutex_lock(&availability_mutex);
-    for(int i = 0; i < numThreads; i++){
-        if(thread_available[i] == 1){
-            thread_available[i] = 0;
-            pthread_mutex_unlock(&availability_mutex);
-            return i;
+void ReadDir(char *dir){
+    DIR *dr = opendir(dir);
+    struct dirent *de;
+    char fullPath[1024 + strlen(dir)];
+
+    int currentThread = FindAvailableThread(numThreads);
+    
+    maxThread = currentThread;
+    
+
+    if (dr == NULL){ 
+        perror("Could not open current directory" ); 
+        exit(EXIT_FAILURE);
+    }
+
+    while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
+        if(de->d_type == DT_REG){
+            snprintf(fullPath, sizeof(fullPath), "%s/%s", dir, de->d_name);
+            ThreadArgs *args = malloc(sizeof(ThreadArgs));
+            args->numThread = currentThread;
+            strcpy(args->file,fullPath);
+            
+            if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)args)){
+                char auxPerror[8000];
+                snprintf(auxPerror,sizeof(auxPerror),"ERROR: cannot create THREAD %d processing FILE %s", currentThread, fullPath);
+                perror(auxPerror);
+                exit(EXIT_FAILURE);
+            }
+            while((currentThread = FindAvailableThread(numThreads)) == -1){
+                usleep(100);
+            }
+            maxThread = currentThread > maxThread ? currentThread : maxThread;
+        }
+        else if(de->d_type == DT_DIR){
+            if(strcmp(de->d_name, ".") != 0 && strcmp(de->d_name, "..") != 0){
+                snprintf(fullPath, sizeof(fullPath), "%s/%s", dir, de->d_name);
+                ReadDir(fullPath);
+            }
         }
     }
-    pthread_mutex_unlock(&availability_mutex);
-    return -1;
+    closedir(dr);
+
 }
 
 int main(int argc, char *argv[]) {
 
     time (&rawtime);
     timeinfo = localtime (&rawtime);
+    struct stat st = {0};
+    double time1 = (double) clock();
+    
+
 
     if(SO == 0){ //How we know the thread changes for each SO
         numThreads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -728,8 +781,9 @@ int main(int argc, char *argv[]) {
     }
 
 
-    pthread_t threads[numThreads];
+    threads = malloc(numThreads * sizeof(pthread_t));
     pthread_mutex_init(&availability_mutex, NULL);
+
         switch (argc) {
             case 1:	
                 FILE *in = stdin;
@@ -747,7 +801,14 @@ int main(int argc, char *argv[]) {
             case 2: 
                 printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
                 break;
-            case 3: 
+            case 3:
+                if (stat("Output", &st) == -1) {
+                        printf("Creating Output Directory...\n");
+                        if (mkdir("Output", 0700) == -1) {
+                            perror("ERROR: Cant create 'Output'");
+                            return 0;
+                        }
+                    }
                 if(strcmp(argv[1],"-f") == 0){
                     ThreadArgs args;
                     args.numThread = FindAvailableThread(numThreads);
@@ -758,42 +819,12 @@ int main(int argc, char *argv[]) {
                     break;
                 }
                 else if(strcmp(argv[1],"-d") == 0){
-                    struct dirent *de;
-                    DIR *dr = opendir(argv[2]);
-                    char fullPath[1024];
                     InitializeVars(numThreads); //INITIALIZE VARS FOR THREADS
-                    
-                    if (dr == NULL){ 
-                        perror("Could not open current directory" ); 
-                        break;
-                    }
-                    
-                    int currentThread = FindAvailableThread(numThreads);
-                    int maxThread = currentThread;
-                    ThreadArgs args[numThreads];
-
-                    while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
-                        if(de->d_type == DT_REG){
-                            snprintf(fullPath, sizeof(fullPath), "%s/%s", argv[2], de->d_name);        
-                            args[currentThread].numThread = currentThread;
-                            strcpy(args[currentThread].file,fullPath);
-                            if(pthread_create(&threads[currentThread], NULL, ProcessFile, (void *)&args[currentThread])){
-                                char auxPerror[8000];
-                                snprintf(auxPerror,sizeof(auxPerror),"ERROR: cannot create THREAD %d processing FILE %s", currentThread, fullPath);
-                                perror(auxPerror);
-                                exit(EXIT_FAILURE);
-                            }
-                            currentThread = FindAvailableThread(numThreads);
-                            while(currentThread == -1){
-                                currentThread = FindAvailableThread(numThreads);
-                            }
-                            maxThread = currentThread > maxThread ? currentThread : maxThread;
-                        }
-                    }
-                    for(int i = 0; i<maxThread; i++){
+                    ReadDir(argv[2]);
+                    for(int i = 0; i < maxThread; i++){
                         pthread_join(threads[i], NULL);
                     }
-                    closedir(dr);
+                    FreeVars();
                     break;
                 }
                 else{  
@@ -803,7 +834,11 @@ int main(int argc, char *argv[]) {
                 break;
             default: printf("ERROR: too many arguments.\nSyntax: %s [Input_file]\n\n", argv[0]);
         }
-        return 0;
+
+    free(threads);
+    double time2 = (double) clock();
+    printf("Execution time: %f seconds\n", (time2 - time1) / CLOCKS_PER_SEC);
+    return 0;
 }
 
 

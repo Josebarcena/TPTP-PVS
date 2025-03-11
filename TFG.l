@@ -3,11 +3,6 @@
 #include "structs.h"
 #include "TFG.tab.h"
 
-static int firstToken = 1; // Bandera para detectar el primer token
-
-void reset_firstToken() {
-    firstToken = 1;
-}
 
 %}
 %option yylineno
@@ -111,8 +106,10 @@ doubleDot ":"
 ignore .|[-\s\n\t]
 
 %%
-{typedHighLogic} { firstToken = 0; return THF;}
-{typedFirstLogic} {firstToken = 0; return TFF;}
+{typedHighLogic} {int *firstToken =  (int *) yyget_extra(yyscanner);
+                        *firstToken = 0; return THF;}
+{typedFirstLogic} {int *firstToken = (int *) yyget_extra(yyscanner);
+                        *firstToken = 0; return TFF;}
 
 {axiom} { return AXIOM;}
 {hypothesis} { return HYPOTHESIS;}
@@ -131,10 +128,10 @@ ignore .|[-\s\n\t]
 {let1} {return LET1;}
 {let2} {return LET2;}
 
-{div} {if(firstToken){ 
+{div} {int *firstToken =  (int *) yyget_extra(yyscanner); if(*firstToken){ 
         yylval->valChar = strdup(yytext); 
         return DIV;}}
-{multiBlock} {if(firstToken){
+{multiBlock} {int *firstToken =  (int *) yyget_extra(yyscanner); if(*firstToken){
         yylval->valChar = strdup(yytext);
         return MULTIBLOCK;}}
 
