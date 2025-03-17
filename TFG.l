@@ -137,7 +137,7 @@ ignore .|[-\s\n\t]
 
 
 {includeFile} {yylval->valChar = strdup(yytext); return INCLUDE_FILE;}
-{var} { yylval->valChar = strdup(yytext); return VAR;}
+{var} {yylval->valChar = strdup(yytext); return VAR;}
 {functor} {yylval->valChar = strdup(yytext);  return FUNCTOR;}
 {dollarWord} {yylval->valChar = strdup(yytext); return DOLLAR_WORD;}
 {systemConstant} {yylval->valChar = strdup(yytext); return SYSTEM_CONSTANT;}

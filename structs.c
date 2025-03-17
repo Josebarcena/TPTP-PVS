@@ -52,9 +52,14 @@ void Free_Variables(Variable *head) {
 int VariableExistsInGroups(TypeGroup *head, const char *varName) {
     TypeGroup *tg = head;
     while (tg) {
-        if (strstr(tg->names, varName)) {
-            return 1;
-        }
+        char *namesCopy = strdup(tg->names);
+        namesCopy = strtok(namesCopy, ",");
+        while (namesCopy != NULL) {
+            if (strcmp(namesCopy, varName) == 0) {
+                return 1;
+            }
+        namesCopy = strtok(NULL, ",");
+    }
         tg = tg->next;
     }
     return 0;

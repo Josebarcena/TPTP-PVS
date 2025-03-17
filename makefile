@@ -1,5 +1,5 @@
 FUENTE = TFG
-PRUEBA = examples/CSR119^1.p
+PRUEBA = examples/example.p
 LIB = lfl
 
 all: compile run2

@@ -56,19 +56,24 @@ char **aux;
 char **auxComment;
 char **fileName;
 char **varDeclaration;
+char **auxVar;
+int *existType;
+int *existTypePlus;
 
 
-char *Prepared_types(char *var){
+char *Prepared_types(char *var, int thread){
     if(var != NULL) {
         if(!strcmp(var,"$int")){
             return "int";
         }
         else if(!strcmp(var,"$tType")){
-            return "TYPE";
+            existType[thread] = 1;
+            return "T";
          
         }
         else if(!strcmp(var,"$i")){
-            return "nonempty_type";
+            existTypePlus[thread] = 1;
+            return "T1";
         }
         else if(!strcmp(var,"$o")){
             return "bool";
@@ -96,9 +101,9 @@ char *Prepare_ListVar(int numThread) {
     Variable *temp = head[numThread]; // define temp to read double linked list
     TypeGroup *typeHead = NULL; 
     char *result;
-    
+/*
     while (temp != NULL) {
-        if (VariableExistsInGroups(typeHead, temp->name)) { // check if var is already added
+       if (VariableExistsInGroups(typeHead, temp->name)) { // check if var is already added
             temp = temp->next;
             continue; //pass to next var
         }
@@ -106,15 +111,12 @@ char *Prepare_ListVar(int numThread) {
         while (tg) {
             //joint the same vars in one line
             if (strcmp(tg->type, temp->type) == 0) {
-                if (strlen(tg->names) + strlen(temp->name) + 3 < sizeof(tg->names)) { 
-                    strcat(tg->names, ", ");
-                    strcat(tg->names, temp->name);
-                }
+                strcat(tg->names, ",");
+                strcat(tg->names, temp->name);
                 break;
             }
             tg = tg->next;
         }
-
         if (!tg) {
             TypeGroup *newGroup = (TypeGroup *)malloc(sizeof(TypeGroup));
             if (!newGroup) {
@@ -131,25 +133,26 @@ char *Prepare_ListVar(int numThread) {
             typeHead = newGroup;
         }
         temp = temp->next;
+
     }
-    TypeGroup *tg = typeHead;
+    TypeGroup *tg = typeHead;*/
     result = strdup("");
-    while (tg) {
+    /*while (tg) {
         char *auxTg = strdup(result);
+        for (int i = 0; i < strlen(tg->type); i++) // replace all * for ,
+        {
+            if (tg->type[i] == '*') tg->type[i] = ',';
+        }
         free(result);
         result = malloc(25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type));
-        if(strcmp(tg->type, "TYPE") != 0){
-            snprintf(result,25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type), "%s!VARS! %s : VAR %s\n",auxTg, tg->names, tg->type);
-        }
-        else{
-            snprintf(result,25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type), "%s!VARS! %s : %s\n",auxTg, tg->names, tg->type);
-        }
+        snprintf(result,25 + strlen(auxTg) +  strlen(tg->names) + strlen(tg->type), "%s!VARS! %s : VAR %s\n",auxTg, tg->names, tg->type);
+        
         TypeGroup *toFree = tg;
         tg = tg->next;
         free(toFree);
         free(auxTg);
     }
-
+    */
     varDeclaration[numThread] = malloc(5 + strlen(result));
     snprintf(varDeclaration[numThread],(5 + strlen(result)), "\n%s\n", result);
 
@@ -214,6 +217,12 @@ S: tptp_file {                  FILE *out = yyget_out(scanner);
                                     fprintf(out,"%s\n", auxComment[thread]);
                                 }
                                 fprintf(out,"%s : THEORY \n \tBEGIN", fileName[thread]);
+                                if(existType[thread] == 1){
+                                    fprintf(out,"\n\nT : TYPE");
+                                }
+                                if(existTypePlus[thread] == 1){
+                                    fprintf(out,"\n\nT1 : TYPE+");
+                                }
                                 fprintf(out,"\n%s",aux[thread]);
                                 fprintf(out,"\n%s", $1);
                                 fprintf(out,"\n\tEND %s",fileName[thread]);
@@ -222,6 +231,7 @@ S: tptp_file {                  FILE *out = yyget_out(scanner);
                                 free(auxComment[thread]);
                                 free(fileName[thread]);
                                 free(varDeclaration[thread]);
+                                free(auxVar[thread]);
             }
     ;
 
@@ -277,7 +287,7 @@ annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 
 thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 25);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"!DT¡ %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 25,"!DT¡ %s: TYPE = [%s]\n", auxVar[thread], $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
@@ -293,7 +303,7 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                         }
     | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 20);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s: TYPE = [%s]\n", $3, $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s: TYPE = [%s]\n", auxVar[thread], $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
@@ -360,9 +370,18 @@ thf_binary_formula: thf_binary_pair {$$ = strdup($1); free($1);/*sending up the 
 	| thf_binary_type {$$ = strdup($1); free($1);/*sending up the tuple */}
 	;
 
-thf_binary_pair: thf_unitary_formula thf_pair_connective thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
-                                                                                snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
-                                                                                $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */}
+thf_binary_pair: thf_unitary_formula thf_pair_connective thf_unitary_formula {  if(strcmp($2,"!=") == 0){
+                                                                                    free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 15); 
+                                                                                    snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 15,"NOT(%s = %s) ", $1, $3);
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */
+                                                                                }   
+                                                                                else{
+                                                                                    free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+                                                                                    snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */
+                                                                                }
+                                                                            }
+
     ;
 
 thf_binary_tuple: thf_or_formula {$$ = strdup($1); free($1);/* sending up the OR formula*/}
@@ -410,7 +429,7 @@ thf_quantified_formula: thf_quantification thf_unitary_formula {free(aux[thread]
                                                                     $$ = strdup(aux[thread]); free($1); free($2);/*we parser quantification formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
-thf_quantification: thf_quantifier OBRA thf_variable_list CBRA DDOT {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 10); 
+thf_quantification: thf_quantifier OBRA thf_variable_list CBRA DDOT {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 10);
                                                                         snprintf(aux[thread], strlen($1) + strlen($3) + 10,"%s (%s) : ", $1, $3);
                                                                         $$ = strdup(aux[thread]); free($1); free($3);/*we parser quantification head --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
@@ -425,8 +444,9 @@ thf_variable: thf_typed_variable {$$ = strdup($1); free($1);/* convert bottom of
     | VAR {$$ = strdup($1); free($1);/* convert bottom of the tree to PVS syntax */}
     ;
 
-thf_typed_variable: VAR DDOT thf_top_level_type {$$ = strdup($1);
-                                                Add_Variable(&head[thread], $1, $3); free($1); free($3);
+thf_typed_variable: VAR DDOT thf_top_level_type {free(auxVar[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);
+                                                snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s: %s", $1, Prepared_types($3, thread));/* Save the var for types name */
+                                                auxVar[thread] = strdup($1); $$ = strdup(aux[thread]); free($1); free($3);
                                                 /*sending up the var */}
     ;
 
@@ -448,7 +468,7 @@ thf_function: atom {$$ = strdup($1); free($1);/*we send up the atom*/}
                                                 snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s (%s)",$1, $3); 
                                                 $$ = strdup(aux[thread]); free($1); free($3);}
     | DOLLAR_WORD OPAREN thf_arguments CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
-                                                    snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s (%s)", Prepared_types($1), $3); 
+                                                    snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s (%s)", Prepared_types($1, thread), $3); 
                                                     $$ = strdup(aux[thread]); free($1); free($3);/*we send up the dollar_word (save arguments name 
                                                     in correct place)*/}
     ;
@@ -471,9 +491,9 @@ thf_let: LET OPAREN thf_unitary_formula COMMA thf_formula CPAREN {free(aux[threa
 thf_arguments: thf_formula_list {$$ = strdup($1); free($1);/* we send up parsed formula_list */}
     ;
 
-thf_type_formula: thf_typeable_formula DDOT thf_top_level_type {$$ = strdup($1); /*we send up the name */
-                                                                /* we store the var for PVS file*/
-                                                                Add_Variable(&head[thread], $1, $3); free($1); free($3);}
+thf_type_formula: thf_typeable_formula DDOT thf_top_level_type {free(auxVar[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5);
+                                                                snprintf(aux[thread],strlen($1) + strlen($3) + 5,"%s: %s", $1, Prepared_types($3, thread));
+                                                                auxVar[thread] = strdup($1); $$ = strdup(aux[thread]); free($1); free($3);}
     ;
 
 thf_typeable_formula: thf_atom {$$ = strdup($1); free($1); /* convert bottom of the tree to PVS syntax */}
@@ -483,7 +503,7 @@ thf_typeable_formula: thf_atom {$$ = strdup($1); free($1); /* convert bottom of 
     ;
 
 thf_subtype: thf_atom SUBTYPE_SIGN thf_atom {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
-                                                snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s: > %s", $1, $3);
+                                                snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s :> %s", $1, $3);
                                                 $$ = strdup(aux[thread]); free($1); free($3); /*we parser the subtype --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
@@ -586,7 +606,7 @@ th1_unary_connective: FORALL_COMB { $$ = strdup("FORALL"); /* bottom of the tree
 
 // LANGUAGE WORDS
 atom: untyped_atom {$$ = strdup($1);  free($1); /*send up the functor*/}
-    | DOLLAR_WORD {$$ = strdup(Prepared_types($1));  free($1); /* bottom of the tree we save here the token*/}
+    | DOLLAR_WORD {$$ = strdup(Prepared_types($1, thread));  free($1); /* bottom of the tree we save here the token*/}
     ;
 
 untyped_atom: constant {$$ = strdup($1); free($1); /* we send up the FUNCTOR */}
@@ -615,9 +635,12 @@ assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here th
 void InitializeVars(int numThreads){
     fileName = malloc(numThreads * sizeof(char *));
     aux = malloc(numThreads * sizeof(char *));
+    auxVar = malloc(numThreads * sizeof(char *));
     head = malloc(numThreads * sizeof(Variable));
     auxComment = malloc(numThreads * sizeof(char *));
     varDeclaration = malloc(numThreads * sizeof(char *));
+    existType = malloc(numThreads * sizeof(int *));
+    existTypePlus = malloc(numThreads * sizeof(int *));
 }
 
 void FreeVars(){
@@ -627,6 +650,9 @@ void FreeVars(){
     free(auxComment);
     free(varDeclaration);
     free(thread_available);
+    free(auxVar);
+    free(existType);
+    free(existTypePlus);
 }
 
 
@@ -692,7 +718,9 @@ void *ProcessFile(void *arg){
             head[data->numThread] = NULL;
             auxComment[data->numThread] = NULL;
             aux[data->numThread] = NULL;
-            
+            auxVar[data->numThread] = NULL;
+            existType[data->numThread] = 0;
+            existTypePlus[data->numThread] = 0;
 
             yyscan_t scanner;
             yylex_init_extra(&first_token_flex, &scanner);
@@ -810,11 +838,11 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 if(strcmp(argv[1],"-f") == 0){
-                    ThreadArgs args;
-                    args.numThread = FindAvailableThread(numThreads);
-                    strcpy(args.file,argv[2]);
                     InitializeVars(1);
-                    ProcessFile((void *)&args);
+                    ThreadArgs *args = malloc(sizeof(ThreadArgs));
+                    args->numThread = FindAvailableThread(numThreads);
+                    strcpy(args->file,argv[2]);
+                    ProcessFile((void *)args);
                     FreeVars();
                     break;
                 }
