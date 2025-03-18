@@ -10,11 +10,10 @@ typedef struct Variable{
     struct Variable *prev;
 } Variable;
     
-typedef struct TypeGroup {
-    char names[1024];
-    char type[50];
-    struct TypeGroup *next;
-} TypeGroup;
+typedef struct ScanVars{
+    int firstToken;
+    char *fileName;
+} ScanVars;
 
 typedef struct {
     int numThread;
@@ -23,5 +22,4 @@ typedef struct {
 
 void Add_Variable(Variable **head,const char *name, const char *type);
 void Free_Variables(Variable *head);
-int VariableExistsInGroups(TypeGroup *head, const char *varName);
 #endif

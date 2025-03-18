@@ -106,10 +106,10 @@ doubleDot ":"
 ignore .|[-\s\n\t]
 
 %%
-{typedHighLogic} {int *firstToken =  (int *) yyget_extra(yyscanner);
-                        *firstToken = 0; return THF;}
-{typedFirstLogic} {int *firstToken = (int *) yyget_extra(yyscanner);
-                        *firstToken = 0; return TFF;}
+{typedHighLogic} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
+                        vars->firstToken = 0; return THF;}
+{typedFirstLogic} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
+                        vars->firstToken = 0; return TFF;}
 
 {axiom} { return AXIOM;}
 {hypothesis} { return HYPOTHESIS;}
@@ -128,12 +128,17 @@ ignore .|[-\s\n\t]
 {let1} {return LET1;}
 {let2} {return LET2;}
 
-{div} {int *firstToken =  (int *) yyget_extra(yyscanner); if(*firstToken){ 
-        yylval->valChar = strdup(yytext); 
-        return DIV;}}
-{multiBlock} {int *firstToken =  (int *) yyget_extra(yyscanner); if(*firstToken){
-        yylval->valChar = strdup(yytext);
-        return MULTIBLOCK;}}
+{div} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
+        if(vars->firstToken){ 
+                yylval->valChar = strdup(yytext); 
+                return DIV;}
+        }
+{multiBlock} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
+                if(vars->firstToken){
+                yylval->valChar = strdup(yytext);
+                return MULTIBLOCK;
+                }
+        }
 
 
 {includeFile} {yylval->valChar = strdup(yytext); return INCLUDE_FILE;}
@@ -149,6 +154,7 @@ ignore .|[-\s\n\t]
 {implies} {return IMPLIES;}
 {nIff} {return NIFF;}
 {nOr} {return NOR;}
+{not} {return UNARY_CONNECTIVE;}
 {nAnd} {return NAND;}
 {exists} {return EXISTS;}
 {tyForAll} {return TYPED_FORALL;}

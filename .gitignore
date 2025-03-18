@@ -8,3 +8,5 @@ lex.yy.c
 THF.files
 TFG.tab.h
 TFG
+test.sh
+copy.bat
