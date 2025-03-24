@@ -425,7 +425,7 @@ thf_unitary_formula: thf_quantified_formula {$$ = strdup($1); free($1);/*sending
     | thf_let {$$ = strdup($1); free($1);/*sending up the let */}
     | thf_tuple {$$ = strdup($1); free($1);/*sending up the tuple */}
     | OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);
-                                        snprintf(aux[thread],strlen($2) + 5,"%s", $2);
+                                        snprintf(aux[thread],strlen($2) + 5,"(%s)", $2);
                                         $$ = strdup(aux[thread]); free($2);/*sending up the tuple */}
     ;
 
@@ -457,10 +457,13 @@ thf_typed_variable: VAR DDOT thf_top_level_type {free(auxVar[thread]); free(aux[
                                                 auxVar[thread] = strdup($1); $$ = strdup(aux[thread]); free($1); free($3);
                                                 /*sending up the var */}
     ;
-
+/* AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIII*/
 thf_unary_formula: thf_unary_connective OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
                                                                             snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s(%s)", $1, $3);
                                                                             $$ = strdup(aux[thread]); free($1); free($3);/*we parser unary formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
+    | thf_unary_connective VAR {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($2) + 5); 
+                                                                            snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s(%s)", $1, $2);
+                                                                            $$ = strdup(aux[thread]); free($1); free($2);/*we parser unary formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     ;
 
 thf_atom: thf_function {$$ = strdup($1); free($1);/*sending up the needed part of the term*/}
@@ -475,8 +478,8 @@ thf_function: atom {$$ = strdup($1); free($1);/*we send up the atom*/}
     | FUNCTOR OPAREN thf_arguments CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
                                                 snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s (%s)",$1, $3); 
                                                 $$ = strdup(aux[thread]); free($1); free($3);}
-    | DOLLAR_WORD OPAREN thf_arguments CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
-                                                    snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s (%s)", Prepared_types($1, thread), $3); 
+    | DOLLAR_WORD OPAREN thf_arguments CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 25); 
+                                                    snprintf(aux[thread], strlen($1) + strlen($3) + 25,"!RESERVEDWORD! %s (%s)", Prepared_types($1, thread), $3); 
                                                     $$ = strdup(aux[thread]); free($1); free($3);/*we send up the dollar_word (save arguments name 
                                                     in correct place)*/}
     ;
@@ -630,7 +633,7 @@ defined_term: NUMBER { $$ = strdup($1);  free($1); /*bottom of the tree we save 
     | DISTINCT_OBJECT {$$ = strdup($1);   free($1);/*bottom of the tree we save here the token*/}
     ;
 
-binary_connective: IFF {$$ = strdup(" = "); /*we convert the token to PVS*/}
+binary_connective: IFF {$$ = strdup(" IFF "); /*we convert the token to PVS*/}
     | IMPLIES {$$ = strdup(" IMPLIES "); /* --WARNING - NOT DIRECT CONVERSION-- */}
     | NIFF {$$ = strdup("NIFF"); /* --WARNING - NOT DIRECT CONVERSION-- */}
     | NOR {$$ = strdup("NOR"); /* --WARNING - NOT DIRECT CONVERSION-- */}
@@ -815,7 +818,7 @@ int main(int argc, char *argv[]) {
     gettimeofday(&start_time, NULL);
 
     if(SO == 0){ //How we know the thread changes for each SO
-        numThreads = sys;
+        numThreads = 28;
     }
     else{
         numThreads = 1;

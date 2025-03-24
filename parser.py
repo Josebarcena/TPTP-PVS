@@ -10,20 +10,16 @@ inside_comment_block = False
 
 pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
-    typed = line[line.find("("):line.find(")")+ 1]
-    pos = line.find(") :") + 5
-    pos1 = line.find("=")
-    
-    if(pos < pos1 or pos1 == -1):  #DEFINITION WITH : FORM
-        aux = line[pos:pos1] #TAKE THE TYPE OF xxx
-        var = aux[:aux.find(" ")] # UNTIL NEXT SPACE
-
+    types = re.search(r'\(([^()]+)\)', line).group(1)
+    aux = line[line.find(":  (") + 4:line.rfind(")")]
+    aux = aux[:aux.find("(")] + "(" + types + aux[aux.find(")"):]
+    aux = re.sub(r'IFF','=', aux, count = 1)
+    varName = aux[:aux.find(" ")]
+    if varName in functions:
+        aux = aux[:aux.find(")")+1] + " : " + functions[varName] + aux[aux.find(")")+1:] + "\n"
     else:
-        var = line[:pos1] #DEFINITION WITH = FORM
-    if var in functions:
-        aux = line[pos:pos1 - 1] +" : " + functions[var] + " " + line[pos1:]
-        aux=re.sub(r'\(.*?\)',typed, aux,count = 1)
-        filtered_lines.append(aux)
+        aux = aux + "\n"
+    filtered_lines.append("CHANGED: " + aux)    
 
 def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
     aux =  re.sub(r'\.([^\s]+)', '',line).replace("'", "") + " \n"
@@ -50,23 +46,33 @@ def COMMENT_PARSER(line: str) -> None:
 def DT_PARSER(line : str) -> None:
     var = re.findall(r'\[(.*?)\]', line)[0]
     varName = var[:var.find(":")]
-    varType = var[var.rfind("->")+2:]
-    functions[varName] = varType
+    varOut = var[var.rfind("->")+2:]
+    functions[varName] = varOut
+    if "->" not in line:
+        filtered_lines.append(var + "\n")
 
-    var = re.sub(r":\s*(.*)", r": [\1]", var)
-    aux = var[var.find(":") + 2:]
-    pos = aux.find("->")
-
-    while (pos != -1):
-        pos1 = aux.find("->", pos+3)
-        if pos1 == -1:
+def DOLLARWORD_PARSER(line: str) -> None:
+    aux = re.sub('!RESERVEDWORD!','',line)
+    while "$" in aux:
+        if "$less " in aux:
+            pos = aux.find("$less ")
+            aux = aux[:pos] + re.sub(r',',' < ',aux[pos +6:],count=1)
+        elif "$greater " in aux:
+            pos = aux.find("$greater ")
+            aux = aux[:pos] + re.sub(r',',' > ',aux[pos +9:],count=1)
+        elif "$greatereq " in aux:
+            pos = aux.find("$greatereq ")
+            aux = aux[:pos] + re.sub(r',',' >= ',aux[pos +10:],count=1)
+        elif "$lesseq " in aux:
+            pos = aux.find("$lesseq ")
+            aux = aux[:pos] + re.sub(r',',' =< ',aux[pos +8:],count=1)
+        elif "$distinct " in aux:         
+            pos = aux.find("$distinct ")
+            aux = aux[:pos] + " NOT " + re.sub(r',',' = ',aux[pos + 9:aux.find(")",pos)]) + aux[aux.find(")"):]
+        else:
+            filtered_lines.append(aux)
             break
-        aux = "[" + aux[:pos] + aux[pos:pos1 - 1] + "]" + aux[pos1:]
-        pos = aux.find("->", pos+3)
-
-    aux = var[:var.find(":") + 2] + aux + "\n"
-    filtered_lines.append(aux)
-
+    filtered_lines.append(aux)    
 
 with open(sys.argv[1], "r") as file:
     for line in file:
@@ -90,13 +96,15 @@ with open(sys.argv[1], "r") as file:
         elif line.startswith("include '"):
             INCLUDE_PARSER(line)
 
+        elif "!RESERVEDWORD!" in line:
+            DOLLARWORD_PARSER(line)
+
         elif line.isspace():
             line.strip()
             filtered_lines.append("\n")
+
         else:
-            aux = re.sub(r'\s=\s', ' IFF ', line)
-            aux = re.sub(r'\s->\s', ' > ', line)
-            filtered_lines.append(aux)
+            filtered_lines.append(line)
 
 
 with open(pvsFile, "w") as file:
