@@ -109,7 +109,9 @@ ignore .|[-\s\n\t]
 {typedHighLogic} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
                         vars->firstToken = 0; return THF;}
 {typedFirstLogic} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
-                        vars->firstToken = 0; return TFF;}
+                        vars->firstToken = 0; return THF;}
+{firstLogic} {ScanVars *vars = (ScanVars *) yyget_extra(yyscanner);
+                        vars->firstToken = 0; return THF;}
 
 {axiom} { return AXIOM;}
 {hypothesis} { return HYPOTHESIS;}

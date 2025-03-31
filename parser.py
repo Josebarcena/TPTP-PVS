@@ -19,7 +19,8 @@ def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
         aux = aux[:aux.find(")")+1] + " : " + functions[varName] + aux[aux.find(")")+1:] + "\n"
     else:
         aux = aux + "\n"
-    filtered_lines.append("CHANGED: " + aux)    
+
+    filtered_lines.append(aux)    
 
 def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
     aux =  re.sub(r'\.([^\s]+)', '',line).replace("'", "") + " \n"
@@ -49,33 +50,15 @@ def DT_PARSER(line : str) -> None:
     varOut = var[var.rfind("->")+2:]
     functions[varName] = varOut
     if "->" not in line:
-        filtered_lines.append(var + "\n")
+        aux = var[:var.find(":")] + " : TYPE = " + var[var.find(":")+1:] + "\n"
+        filtered_lines.append(aux + "\n")
 
-def DOLLARWORD_PARSER(line: str) -> None:
-    aux = re.sub('!RESERVEDWORD!','',line)
-    while "$" in aux:
-        if "$less " in aux:
-            pos = aux.find("$less ")
-            aux = aux[:pos] + re.sub(r',',' < ',aux[pos +6:],count=1)
-        elif "$greater " in aux:
-            pos = aux.find("$greater ")
-            aux = aux[:pos] + re.sub(r',',' > ',aux[pos +9:],count=1)
-        elif "$greatereq " in aux:
-            pos = aux.find("$greatereq ")
-            aux = aux[:pos] + re.sub(r',',' >= ',aux[pos +10:],count=1)
-        elif "$lesseq " in aux:
-            pos = aux.find("$lesseq ")
-            aux = aux[:pos] + re.sub(r',',' =< ',aux[pos +8:],count=1)
-        elif "$distinct " in aux:         
-            pos = aux.find("$distinct ")
-            aux = aux[:pos] + " NOT " + re.sub(r',',' = ',aux[pos + 9:aux.find(")",pos)]) + aux[aux.find(")"):]
-        else:
-            filtered_lines.append(aux)
-            break
-    filtered_lines.append(aux)    
+
 
 with open(sys.argv[1], "r") as file:
     for line in file:
+
+
         if ": THEORY" in line or "\tEND" in line:
             aux = re.sub(r'\.([^\s]+)', '', line)
             aux = re.sub(r'[\^\*\+]', '_', aux)
@@ -96,15 +79,13 @@ with open(sys.argv[1], "r") as file:
         elif line.startswith("include '"):
             INCLUDE_PARSER(line)
 
-        elif "!RESERVEDWORD!" in line:
-            DOLLARWORD_PARSER(line)
-
         elif line.isspace():
             line.strip()
             filtered_lines.append("\n")
 
         else:
             filtered_lines.append(line)
+
 
 
 with open(pvsFile, "w") as file:
