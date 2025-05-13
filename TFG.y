@@ -148,6 +148,18 @@ void ParserArgs(char *str, char *func) {
     }
 }
 
+int Ends_AnthemDef(const char *str) {
+    const char *suffix = "def_ax";
+    size_t str_len = strlen(str);
+    size_t suffix_len = strlen(suffix);
+
+    if (suffix_len > str_len) {
+        return 0;
+    }
+
+    return (strcmp(str + str_len - suffix_len, suffix) == 0);
+}
+
 
 %}
 
@@ -268,13 +280,18 @@ annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]);
                                                                             aux[thread] = malloc(strlen(auxVar[thread]) + strlen($7) + 25);
-                                                                            snprintf(aux[thread],strlen(auxVar[thread]) + strlen($7) + 25,"!DT¡ %s: TYPE = [%s]\n", auxVar[thread], $7);
+                                                                            snprintf(aux[thread],strlen(auxVar[thread]) + strlen($7) + 25,"!DT¡ %s\n", $7);
                                                                             $$ = strdup(aux[thread]);  free($3); free($5); free($7);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
+                                                                            }
+                                                                            else if(Ends_AnthemDef($3)){ //we use a TAG for python script
+                                                                                free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
+                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
+                                                                                $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
                                                                            else{
                                                                                 free(aux[thread]); 
@@ -285,10 +302,15 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                         }
     | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 20);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s: TYPE = [%s]\n", auxVar[thread], $7);
+                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s\n", $7);
                                                                             $$ = strdup(aux[thread]); free($5); free($7); free($3);
                                                                             }
                                                                             else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
+                                                                                free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
+                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
+                                                                                $$ = strdup(aux[thread]); free($7); free($3); free($5);
+                                                                            }
+                                                                            else if(Ends_AnthemDef($3)){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);

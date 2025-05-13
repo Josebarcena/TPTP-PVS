@@ -7,20 +7,44 @@ filtered_lines = []
 include_lines = []
 comments_lines = []
 inside_comment_block = False
+basic_types = ["bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_real", "rational", "string", "list[T]", "array[T1 -> T2]", "setof[T]", "function[T1 -> T2]", "record"]
 
 pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
+
+def BracesForTypes(expr):
+    parts = [p.strip() for p in expr.split('->')]
+    if len(parts) < 2:
+        return expr  # no hay flechas, devolver original
+
+    counter = f"[{parts[0]} -> {parts[1]}]"
+    for parte in parts[2:]:
+        counter = f"[{counter} -> {parte}]"
+
+    return counter
+
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
     types = re.search(r'\(([^()]+)\)', line).group(1)
     aux = line[line.find(":  (") + 4:line.rfind(")")]
     aux = aux[:aux.find("(")] + "(" + types + aux[aux.find(")"):]
+    match = re.split(r'\s+IFF\s+', aux)
     aux = re.sub(r'IFF','=', aux, count = 1)
-    varName = aux[:aux.find(" ")]
-    if varName in functions:
-        aux = aux[:aux.find(")")+1] + " : " + functions[varName] + aux[aux.find(")")+1:] + "\n"
-    else:
-        aux = aux + "\n"
 
-    filtered_lines.append(aux)    
+    if (match and "=" in match[0].strip()):
+        filtered_lines.append("%CHECK!!!!" + line + "\n")
+    elif "LAMBDA" in line:
+        aux = line[2:line.rfind(")")-1]
+        aux = aux.replace("=", ": AXIOM\n")
+
+        filtered_lines.append(aux + "\n")
+    else:
+        varName = aux[:aux.find(" ")]
+        if varName in functions:
+            aux = aux[:aux.find(")")+1] + " : " + functions[varName] + aux[aux.find(")")+1:] + "\n"
+        else:
+            aux = aux + "\n"
+        filtered_lines.append(aux)  
+        
+
 
 def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
     aux =  re.sub(r'\.([^\s]+)', '',line).replace("'", "") + " \n"
@@ -45,15 +69,22 @@ def COMMENT_PARSER(line: str) -> None:
         comments_lines.append(aux)
 
 def DT_PARSER(line : str) -> None:
-    var = re.findall(r'\[(.*?)\]', line)[0]
-    varName = var[:var.find(":")]
-    varOut = var[var.rfind("->")+2:]
-    functions[varName] = varOut
-    if "->" not in line:
-        aux = var[:var.find(":")] + " : TYPE = " + var[var.find(":")+1:] + "\n"
-        filtered_lines.append(aux + "\n")
-
-
+    name, rest = line.split(":")
+    rest = re.sub(r'[()]','',rest).strip()
+    if "->" in rest:
+        type = rest[:rest.rfind("->")].strip().replace('*', ',')
+        out = rest[rest.rfind("->") + 2:].strip()
+        functions[name.strip()] = out
+        type = BracesForTypes(type)
+        aux = f"{name.strip()}: TYPE = [{type} -> {out}]" + "\n"
+        filtered_lines.append(aux)
+    else:
+        type = rest.strip()
+        if type == basic_types:
+            aux = f"{name.strip()}: TYPE = {type}" + "\n"
+        else:
+            aux = f"{name.strip()}: {type}" + "\n"
+        filtered_lines.append(aux)
 
 with open(sys.argv[1], "r") as file:
     for line in file:
