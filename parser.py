@@ -33,8 +33,8 @@ def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
         filtered_lines.append("%CHECK!!!!" + line + "\n")
     elif "LAMBDA" in line:
         aux = line[2:line.rfind(")")-1]
-        aux = aux.replace("=", ": AXIOM\n")
-
+        name = aux[:aux.find("=")]
+        aux = "LAMBDA " + name + ":" + aux[aux.find("=")+1:line.rfind(")")-1].replace("LAMBDA", "")
         filtered_lines.append(aux + "\n")
     else:
         varName = aux[:aux.find(" ")]
@@ -72,7 +72,7 @@ def DT_PARSER(line : str) -> None:
     name, rest = line.split(":")
     rest = re.sub(r'[()]','',rest).strip()
     if "->" in rest:
-        type = rest[:rest.rfind("->")].strip().replace('*', ',')
+        type = rest[:rest.rfind("->")].strip().replace('*', '->')
         out = rest[rest.rfind("->") + 2:].strip()
         functions[name.strip()] = out
         type = BracesForTypes(type)
@@ -80,10 +80,7 @@ def DT_PARSER(line : str) -> None:
         filtered_lines.append(aux)
     else:
         type = rest.strip()
-        if type == basic_types:
-            aux = f"{name.strip()}: TYPE = {type}" + "\n"
-        else:
-            aux = f"{name.strip()}: {type}" + "\n"
+        aux = f"{name.strip()}: TYPE = {type}" + "\n"
         filtered_lines.append(aux)
 
 with open(sys.argv[1], "r") as file:
