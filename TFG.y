@@ -71,12 +71,12 @@ char *Prepared_types(char *var, int thread){
         }
         else if(!strcmp(var,"$tType")){
             existType[thread] = 1;
-            return "T";
+            return "TYPE";
          
         }
         else if(!strcmp(var,"$i")){
             existTypePlus[thread] = 1;
-            return "T1";
+            return "TYPE+";
         }
         else if(!strcmp(var,"$o")){
             return "bool";
@@ -211,12 +211,6 @@ S: tptp_file {                  FILE *out = yyget_out(scanner);
                                     fprintf(out,"%s\n", auxComment[thread]);
                                 }
                                 fprintf(out,"%s : THEORY \n \tBEGIN", fileName[thread]);
-                                if(existType[thread] == 1){
-                                    fprintf(out,"\n\nT : TYPE");
-                                }
-                                if(existTypePlus[thread] == 1){
-                                    fprintf(out,"\n\nT1 : TYPE+");
-                                }
                                 fprintf(out,"\n%s", $1);
                                 fprintf(out,"\n\tEND %s",fileName[thread]);
                                 free($1);
@@ -288,11 +282,11 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
                                                                             }
-                                                                            else if(Ends_AnthemDef($3)){ //we use a TAG for python script
+                                                                            /*else if(Ends_AnthemDef($3)){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
-                                                                            }
+                                                                            }*/
                                                                            else{
                                                                                 free(aux[thread]); 
                                                                                 aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
@@ -310,11 +304,11 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
                                                                             }
-                                                                            else if(Ends_AnthemDef($3)){ //we use a TAG for python script
+                                                                            /*else if(Ends_AnthemDef($3)){ //we use a TAG for python script
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
                                                                                 snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
                                                                                 $$ = strdup(aux[thread]); free($7); free($3); free($5);
-                                                                            }
+                                                                            }*/
                                                                            else{
                                                                                 free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
                                                                                 snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n\n%s : %s \n\t%s", $3, $5, $7);

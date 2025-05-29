@@ -80,7 +80,7 @@ def DT_PARSER(line : str) -> None:
         filtered_lines.append(aux)
     else:
         type = rest.strip()
-        aux = f"{name.strip()}: TYPE = {type}" + "\n"
+        aux = f"{name.strip()}: {type}" + "\n"
         filtered_lines.append(aux)
 
 with open(sys.argv[1], "r") as file:
