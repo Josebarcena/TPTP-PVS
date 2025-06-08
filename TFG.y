@@ -843,10 +843,18 @@ int main(int argc, char *argv[]) {
     gettimeofday(&start_time, NULL);
 
     if(SO == 0){ //How we know the thread changes for each SO
-        numThreads = 28;
+        if(strcmp(argv[3],"-h") == 0){
+            if(atoi(argv[4]) > 1)
+                numThreads = atoi(argv[4]);    
+    }
+        else numThreads = 1;
     }
     else{
-        numThreads = 1;
+        if(strcmp(argv[3],"-h") == 0){
+            if(atoi(argv[4]) > 1)
+                numThreads = atoi(argv[4]);    
+    }
+        else numThreads = 1;
     }
     thread_available = malloc(numThreads * sizeof(int));
     for(int i = 0; i < numThreads; i++){
@@ -875,6 +883,8 @@ int main(int argc, char *argv[]) {
                 printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
                 break;
             case 3:
+            case 4:
+            case 5:
                 if (stat("Output", &st) == -1) {
                         printf("Creating Output Directory...\n");
                         if (mkdir("Output", 0700) == -1) {
@@ -901,7 +911,7 @@ int main(int argc, char *argv[]) {
                     break;
                 }
                 else{  
-                    printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
+                    printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory -h threads\n");
                     break;
                 }
                 break;
