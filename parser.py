@@ -11,16 +11,6 @@ basic_types = ["bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_re
 
 pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
 
-def BracesForTypes(expr):
-    parts = [p.strip() for p in expr.split('->')]
-    if len(parts) < 2:
-        return expr  # no hay flechas, devolver original
-
-    counter = f"[{parts[0]} -> {parts[1]}]"
-    for parte in parts[2:]:
-        counter = f"[{counter} -> {parte}]"
-
-    return counter
 
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
     types = re.search(r'\(([^()]+)\)', line).group(1)
@@ -51,6 +41,20 @@ def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
     aux = aux[:aux.find(" ")+1] + "\"" + aux[aux.find(" ")+1:].strip() + ".pvs\"\n"
     include_lines.append(aux)
 
+def remove_redundant_parentheses(expr):
+    """
+    Elimina paréntesis redundantes de expresiones lógicas sin romper la estructura.
+    Supone que la expresión está correctamente parentizada.
+    """
+    prev = None
+    while prev != expr:
+        prev = expr
+        # Elimina doble paréntesis envolventes: ((X)) → (X)
+        expr = re.sub(r'\(\s*\(([^()]+)\)\s*\)', r'(\1)', expr)
+        # Elimina paréntesis innecesarios alrededor de un único elemento: (X) → X
+        expr = re.sub(r'^\(([^()]+)\)$', r'\1', expr)
+    return expr
+
 def COMMENT_PARSER(line: str) -> None:
     aux = line
     global inside_comment_block
@@ -75,8 +79,8 @@ def DT_PARSER(line : str) -> None:
         type = rest[:rest.rfind("->")].strip().replace('*', '->')
         out = rest[rest.rfind("->") + 2:].strip()
         functions[name.strip()] = out
-        type = BracesForTypes(type)
-        aux = f"{name.strip()}: TYPE = [{type} -> {out}]" + "\n"
+        type = type.replace("->", ",")
+        aux = f"{name.strip()}: [{type} -> {out}]" + "\n"
         filtered_lines.append(aux)
     else:
         type = rest.strip()
@@ -112,7 +116,7 @@ with open(sys.argv[1], "r") as file:
             filtered_lines.append("\n")
 
         else:
-            filtered_lines.append(line)
+            filtered_lines.append(remove_redundant_parentheses(line))
 
 
 

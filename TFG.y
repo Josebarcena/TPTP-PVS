@@ -71,7 +71,7 @@ char *Prepared_types(char *var, int thread){
         }
         else if(!strcmp(var,"$tType")){
             existType[thread] = 1;
-            return "TYPE";
+            return "TYPE+";
          
         }
         else if(!strcmp(var,"$i")){
@@ -101,7 +101,6 @@ char *Prepared_types(char *var, int thread){
 
 void ParserArgs(char *str, char *func) {
     char newChar[3];
-
     if(strcmp(func,"$less") == 0){
         strcpy(newChar,"<");
     }
@@ -126,26 +125,21 @@ void ParserArgs(char *str, char *func) {
     else if(strcmp(func,"$sum") == 0){
         strcpy(newChar,"+");
     }
-    char *pos = str;
+    char buffer[512] = "";
+    int i = 0;
 
-    while (*pos) {
+    for (char *pos = str; *pos && i < sizeof(buffer) - 2; ++pos) {
         if (*pos == ',') {
-             if (newChar[1] != '\0') {
-                *pos = newChar[0];
-                pos++;
-            while (*pos) {
-                    char temp = *pos;
-                    *pos = newChar[1];
-                    newChar[1] = temp;
-                    pos++;
-                }
+            buffer[i++] = newChar[0];
+            if (newChar[1] != '\0') {
+                buffer[i++] = newChar[1];
             }
-            else {
-                    *pos = newChar[0];
-            }
+        } else {
+            buffer[i++] = *pos;
         }
-        pos++;
     }
+    buffer[i] = '\0';
+    strcpy(str, buffer);
 }
 
 int Ends_AnthemDef(const char *str) {
@@ -180,7 +174,7 @@ int Ends_AnthemDef(const char *str) {
 %token THF TFF
 %token AXIOM HYPOTHESIS DEFINITION LEMMA THEOREM CONJECTURE NEGATEDCONJ TYPE ASSUMPTION PLAIN UNKNOWN
 %token EQUAL_COMB DESCRIPTION_COMB CHOICE_COMB EXISTS_COMB FORALL_COMB
-%token DESCRIPTION CHOICE LAMBDA EXISTS FORALL GENTZ_ARROW ARROW APPLICATION AND VLINE
+%token DESCRIPTION CHOICE LAMBDA EXISTS FORALL GENTZ_ARROW ARROW  %left VLINE %left AND %left APPLICATION 
 %token UNARY_CONNECTIVE ASSIGNMENT IMPLIES IFF INFIX_EQUALITY INFIX_INEQUALITY SUBTYPE_SIGN
 %token NIFF NOR NAND
 %token TYPED_EXISTS TYPED_FORALL
@@ -422,6 +416,8 @@ thf_unitary_formula: thf_quantified_formula {$$ = strdup($1); free($1);/*sending
                                         $$ = strdup(aux[thread]); free($2);/*sending up the tuple */}
     ;
 
+
+
 thf_quantified_formula: thf_quantification thf_unitary_formula {free(aux[thread]); 
                                                                     aux[thread] = malloc( strlen($1) + strlen($2) + 5); 
                                                                     snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s %s ", $1, $2);
@@ -647,7 +643,15 @@ th1_unary_connective: FORALL_COMB { $$ = strdup("FORALL"); /* bottom of the tree
 
 // LANGUAGE WORDS
 atom: untyped_atom {$$ = strdup($1);  free($1); /*send up the functor*/}
-    | DOLLAR_WORD {$$ = strdup(Prepared_types($1, thread));  free($1); /* bottom of the tree we save here the token*/}
+    | DOLLAR_WORD {
+        if (strcmp($1, "$true") == 0) {
+            $$ = strdup("TRUE");
+        } else if (strcmp($1, "$false") == 0) {
+            $$ = strdup("FALSE");
+        } else {
+            $$ = strdup(Prepared_types($1, thread));
+        }
+        free($1); /* bottom of the tree we save here the token */}
     ;
 
 untyped_atom: constant {$$ = strdup($1); free($1); /* we send up the FUNCTOR */}
