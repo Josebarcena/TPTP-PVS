@@ -357,7 +357,13 @@ thf_logic_formula: thf_binary_formula {$$ = strdup($1); free($1);/* char comes f
     | thf_subtype {$$ = strdup($1); free($1);/* char comes from subtype*/}
     ;
 
-thf_binary_formula: thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
+thf_binary_formula: thf_logic_formula binary_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+                                                                                    snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */}
+    | thf_logic_formula assoc_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+                                                                                    snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */}                                                                                 
+    |thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
 	| thf_binary_tuple {$$ = strdup($1); free($1);/*sending up the tuple */}
 	| thf_binary_type {$$ = strdup($1); free($1);/*sending up the tuple */}
 	;
