@@ -853,18 +853,22 @@ int main(int argc, char *argv[]) {
     gettimeofday(&start_time, NULL);
 
     if(SO == 0){ //How we know the thread changes for each SO
-        if(strcmp(argv[3],"-h") == 0){
-            if(atoi(argv[4]) > 1)
-                numThreads = atoi(argv[4]);    
-    }
-        else numThreads = 1;
+       if(argc > 3){
+            if(strcmp(argv[3],"-h") == 0){
+                if(atoi(argv[4]) > 1)
+                    numThreads = atoi(argv[4]);    
+            }
+            else numThreads = 1;
+       }
     }
     else{
-        if(strcmp(argv[3],"-h") == 0){
-            if(atoi(argv[4]) > 1)
-                numThreads = atoi(argv[4]);    
-    }
-        else numThreads = 1;
+        if(argc > 3){
+            if(strcmp(argv[3],"-h") == 0){
+                if(atoi(argv[4]) > 1)
+                    numThreads = atoi(argv[4]);    
+            }
+            else numThreads = 1;
+        }    
     }
     thread_available = malloc(numThreads * sizeof(int));
     for(int i = 0; i < numThreads; i++){
