@@ -41,20 +41,6 @@ def INCLUDE_PARSER(line : str) -> None: #JUST PARSER INCLUDE INTO PVS FORMAT
     aux = aux[:aux.find(" ")+1] + "\"" + aux[aux.find(" ")+1:].strip() + ".pvs\"\n"
     include_lines.append(aux)
 
-def remove_redundant_parentheses(expr):
-    """
-    Elimina paréntesis redundantes de expresiones lógicas sin romper la estructura.
-    Supone que la expresión está correctamente parentizada.
-    """
-    prev = None
-    while prev != expr:
-        prev = expr
-        # Elimina doble paréntesis envolventes: ((X)) → (X)
-        expr = re.sub(r'\(\s*\(([^()]+)\)\s*\)', r'(\1)', expr)
-        # Elimina paréntesis innecesarios alrededor de un único elemento: (X) → X
-        expr = re.sub(r'^\(([^()]+)\)$', r'\1', expr)
-    return expr
-
 def COMMENT_PARSER(line: str) -> None:
     aux = line
     global inside_comment_block
@@ -116,7 +102,7 @@ with open(sys.argv[1], "r") as file:
             filtered_lines.append("\n")
 
         else:
-            filtered_lines.append(remove_redundant_parentheses(line))
+            filtered_lines.append(line)
 
 
 

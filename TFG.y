@@ -388,18 +388,18 @@ thf_binary_tuple: thf_or_formula {$$ = strdup($1); free($1);/* sending up the OR
     ;
 
 thf_or_formula: thf_unitary_formula VLINE thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 15); 
-                                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"((%s) OR (%s)) ", $1, $3);
+                                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"%s OR %s ", $1, $3);
                                                                     $$ = strdup(aux[thread]); free($1); free($3);/*we parser base formula */}
 	| thf_or_formula VLINE thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 15); 
-                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"((%s) OR (%s)) ", $1, $3);
+                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"%s OR %s", $1, $3);
                                                     $$ = strdup(aux[thread]); free($1); free($3);/*we parser base formula */}
 	;
 
 thf_and_formula: thf_unitary_formula AND thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 15); 
-                                                                snprintf(aux[thread],strlen($1) + strlen($3) + 15,"((%s) AND (%s)) ", $1, $3);
+                                                                snprintf(aux[thread],strlen($1) + strlen($3) + 15,"%s AND %s ", $1, $3);
                                                                 $$ = strdup(aux[thread]); free($1); free($3);/*we parser base formula */}
     | thf_and_formula AND thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 15);  
-                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"((%s) AND (%s)) ", $1, $3);
+                                                    snprintf(aux[thread],strlen($1) + strlen($3) + 15,"%s AND %s ", $1, $3);
                                                     $$ = strdup(aux[thread]); free($1); free($3);/*we parser compose formula */}
     ;
 
