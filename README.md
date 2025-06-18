@@ -64,15 +64,19 @@ El sistema dividirá la carga entre los hilos disponibles para procesar los arch
 ├── Makefile          # Compilación automática del sistema
 └── LICENSE           # Licencia Creative Commons BY-SA 4.0
 ```
-📄 Licencia
+## 📄 Licencia
 Este proyecto está publicado bajo licencia Creative Commons Atribución-CompartirIgual 4.0 Internacional (CC BY-SA 4.0).
+
 Puedes reutilizar, modificar o distribuir este trabajo siempre que se cite al autor original y se mantenga la misma licencia.
 
-👨‍💻 Autor
+## 👨‍💻 Autor
 José Bárcena
-Trabajo de Fin de Grado – Universidad de A Coruña
-Contacto: [josebarcena98@gmail.com]
 
-🔗 Enlaces útiles
-TPTP Problem Library
-PVS: Prototype Verification System
+Trabajo de Fin de Grado – Universidad de A Coruña
+
+Contacto: [josebarcena98@gmail.com](mailto:josebarcena98@gmail.com)
+
+## 🔗 Enlaces útiles
+[TPTP Problem Library](http://www.tptp.org/)
+
+[PVS: Prototype Verification System](https://pvs.csl.sri.com/)
