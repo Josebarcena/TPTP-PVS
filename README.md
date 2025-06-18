@@ -53,7 +53,7 @@ python3 parser.py tests/ -h 20
 El sistema dividirá la carga entre los hilos disponibles para procesar los archivos en paralelo. Se generará una salida para cada archivo en la carpeta output/.
 
 📁 Estructura del repositorio
-
+```tree
 .
 ├── parser.l          # Análisis léxico con Flex
 ├── parser.y          # Análisis sintáctico con Bison
@@ -63,7 +63,7 @@ El sistema dividirá la carga entre los hilos disponibles para procesar los arch
 ├── tests/            # Carpeta con archivos TPTP de prueba
 ├── Makefile          # Compilación automática del sistema
 └── LICENSE           # Licencia Creative Commons BY-SA 4.0
-
+```
 📄 Licencia
 Este proyecto está publicado bajo licencia Creative Commons Atribución-CompartirIgual 4.0 Internacional (CC BY-SA 4.0).
 Puedes reutilizar, modificar o distribuir este trabajo siempre que se cite al autor original y se mantenga la misma licencia.
