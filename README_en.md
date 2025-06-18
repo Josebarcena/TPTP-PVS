@@ -73,11 +73,14 @@ You are free to reuse, modify, and distribute this work as long as you credit th
 
 ## 👨‍💻 Author
 -José Bárcena
--Bachelor's Thesis – University of A Coruña
+
+-Bachelor's Thesis – University of A Coruña  
+
 -Contact: [josebarcena98@gmail.com](mailto:josebarcena98@gmail.com)
 
 ---
 
 ##🔗 Useful Links
 [TPTP Problem Library](http://www.tptp.org/)
+
 [PVS: Prototype Verification System](https://pvs.csl.sri.com/)
