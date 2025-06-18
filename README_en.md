@@ -51,7 +51,8 @@ python3 parser.py tests/ -h 20
 
 The system will distribute the workload among available threads to process the files in parallel. Each result will be written into the output/ directory.
 
-📁 Repository Structure
+## 📁 Repository Structure
+```bash
 .
 ├── parser.l          # Lexical analyzer (Flex)
 ├── parser.y          # Syntax analyzer (Bison)
@@ -61,20 +62,19 @@ The system will distribute the workload among available threads to process the f
 ├── tests/            # Sample TPTP input files
 ├── Makefile          # Automated build system
 └── LICENSE           # Creative Commons BY-SA 4.0 license
+```
 
-
-📄 License
+## 📄 License
 This project is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
 
 You are free to reuse, modify, and distribute this work as long as you credit the original author and maintain the same license.
 
 
-👨‍💻 Author
+## 👨‍💻 Author
 José Bárcena
 Bachelor's Thesis – University of A Coruña
 Contact: [josebarcena98@gmail.com]
 
-🔗 Useful Links
+##🔗 Useful Links
 TPTP Problem Library
-
 PVS: Prototype Verification System
