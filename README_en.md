@@ -65,15 +65,18 @@ The system will distribute the workload among available threads to process the f
 ```
 
 ## 📄 License
--This project is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
+This project is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA 4.0).
 
--You are free to reuse, modify, and distribute this work as long as you credit the original author and maintain the same license.
+You are free to reuse, modify, and distribute this work as long as you credit the original author and maintain the same license.
 
+---
 
 ## 👨‍💻 Author
 -José Bárcena
 -Bachelor's Thesis – University of A Coruña
 -Contact: [josebarcena98@gmail.com](mailto:josebarcena98@gmail.com)
+
+---
 
 ##🔗 Useful Links
 [TPTP Problem Library](http://www.tptp.org/)
