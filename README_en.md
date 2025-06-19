@@ -34,7 +34,7 @@ Its purpose is to serve as a bridge between automated theorem provers and formal
 ```bash
 git clone https://github.com/Josebarcena/TPTP-PVS.git
 cd TPTP-PVS
-make
+make compile
 ```
 Translate a single .p file
 ```bash
@@ -58,8 +58,6 @@ The system will distribute the workload among available threads to process the f
 ├── TPTPVS.y          # Syntax analyzer (Bison)
 ├── structs.{h,c}     # Intermediate data structures
 ├── TPTPVS.py         # Semantic backend and concurrent execution
-├── output/           # Output directory for translated PVS files
-├── tests/            # Sample TPTP input files
 ├── Makefile          # Automated build system
 └── LICENSE           # Creative Commons BY-SA 4.0 license
 ```
