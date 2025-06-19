@@ -1,7 +1,7 @@
 %{
 
 #include "structs.h"
-#include "TFG.tab.h"
+#include "TPTPVS.tab.h"
 
 
 %}

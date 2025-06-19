@@ -357,13 +357,13 @@ thf_logic_formula: thf_binary_formula {$$ = strdup($1); free($1);/* char comes f
     | thf_subtype {$$ = strdup($1); free($1);/* char comes from subtype*/}
     ;
 
-thf_binary_formula: thf_logic_formula binary_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+thf_binary_formula: /*thf_logic_formula binary_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
                                                                                     snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
-                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */}
-    | thf_logic_formula assoc_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ //}
+    /*| thf_logic_formula assoc_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
                                                                                     snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
-                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */}                                                                                 
-    |thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ //}                                                                                 
+    thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
 	| thf_binary_tuple {$$ = strdup($1); free($1);/*sending up the tuple */}
 	| thf_binary_type {$$ = strdup($1); free($1);/*sending up the tuple */}
 	;
@@ -740,16 +740,25 @@ void *ProcessFile(void *arg){
     char command[2048];
     ThreadArgs *data = (ThreadArgs *)arg;
     ScanVars *scanVars = malloc(sizeof(ScanVars));
-    
+    size_t len = 0;
     
 
     //printf("Processing FILE : %s \n",data->file);
    FILE *in = fopen(data->file, "r");
         if (in == NULL) {
             printf("ERROR: File cant be opened.\r\n");
+            return NULL;
         }
         else {
+           
+
             char *baseName = strrchr(data->file, FILE_SEPARATOR);
+            len = strlen(baseName);
+            if (len >= 2 && strcmp(baseName + len - 2, ".p") != 0) {
+                printf("ERROR: File %s is not a TPTP file.\n", data->file);
+                fclose(in);
+                return NULL;
+            }
             if (baseName) {
                 baseName++;
             } else {
@@ -758,13 +767,13 @@ void *ProcessFile(void *arg){
             outputFileName = malloc(strlen(baseName) + 15);
             snprintf(outputFileName,strlen(baseName) + 15, "Output%c%s.pvs", FILE_SEPARATOR, baseName);
             fileName[data->numThread] = strdup(baseName);
-            printf("Creating FILE : %s \n", outputFileName);
+            printf("Creating FILE : %.*spvs \n", (int)(strlen(outputFileName) - 5), outputFileName);
             outputFile = fopen(outputFileName, "w");
 
             if (outputFile == NULL) {
                 perror("ERROR: OutputFile cant be created.\n");
                 fclose(in);
-                return 0;
+                return NULL;
             }
             head[data->numThread] = NULL;
             auxComment[data->numThread] = NULL;
@@ -811,7 +820,7 @@ void ReadDir(char *dir){
 
     if (dr == NULL){ 
         perror("Could not open current directory" ); 
-        exit(EXIT_FAILURE);
+        return;
     }
 
     while ((de = readdir(dr)) != NULL){ // we send each file != . | ..
@@ -851,14 +860,13 @@ int main(int argc, char *argv[]) {
     struct timeval start_time, end_time;
     
     gettimeofday(&start_time, NULL);
-
+    numThreads = 1;
     if(SO == 0){ //How we know the thread changes for each SO
        if(argc > 3){
             if(strcmp(argv[3],"-h") == 0){
                 if(atoi(argv[4]) > 1)
                     numThreads = atoi(argv[4]);    
             }
-            else numThreads = 1;
        }
     }
     else{
@@ -867,12 +875,12 @@ int main(int argc, char *argv[]) {
                 if(atoi(argv[4]) > 1)
                     numThreads = atoi(argv[4]);    
             }
-            else numThreads = 1;
         }    
     }
     thread_available = malloc(numThreads * sizeof(int));
     for(int i = 0; i < numThreads; i++){
         thread_available[i] = 1;
+        printf("Thread %d available.\n", i);
     }
 
 
@@ -909,7 +917,8 @@ int main(int argc, char *argv[]) {
                 if(strcmp(argv[1],"-f") == 0){
                     InitializeVars(1);
                     ThreadArgs *args = malloc(sizeof(ThreadArgs));
-                    args->numThread = FindAvailableThread(numThreads);
+                    args->numThread = FindAvailableThread(1);
+                    printf("Processing thread: %d \n", args->numThread);
                     strcpy(args->file,argv[2]);
                     ProcessFile((void *)args);
                     FreeVars();
