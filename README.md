@@ -34,11 +34,11 @@ Su propósito es servir de puente entre herramientas de demostración automátic
 ```bash
 git clone https://github.com/Josebarcena/TPTP-PVS.git
 cd TPTP-PVS
-make
+make compile
 ```
 Ejecutar el traductor sobre un archivo individual
 ```
-./translator tests/ejemplo1.p
+./TPTPVS tests/ejemplo1.p
 
 ```
 Esto generará un archivo output/ejemplo1.pvs con la traducción resultante.
