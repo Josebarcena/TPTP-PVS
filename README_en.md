@@ -38,7 +38,7 @@ make
 ```
 Translate a single .p file
 ```bash
-./translator tests/ejemplo1.p
+./TPTPVS tests/ejemplo1.p
 ```
 This will generate an output file output/ejemplo1.pvs with the translated specification.
 
@@ -46,7 +46,7 @@ Concurrent processing (folder translation)
 You can translate all .p files in a folder (e.g., tests/) using parallel execution with multiple threads:
 
 ```bash
-python3 parser.py tests/ -h 20
+./TPTPVS tests/ -h 20
 ```
 
 The system will distribute the workload among available threads to process the files in parallel. Each result will be written into the output/ directory.
@@ -54,10 +54,10 @@ The system will distribute the workload among available threads to process the f
 ## 📁 Repository Structure
 ```bash
 .
-├── parser.l          # Lexical analyzer (Flex)
-├── parser.y          # Syntax analyzer (Bison)
+├── TPTPVS.l          # Lexical analyzer (Flex)
+├── TPTPVS.y          # Syntax analyzer (Bison)
 ├── structs.{h,c}     # Intermediate data structures
-├── parser.py         # Semantic backend and concurrent execution
+├── TPTPVS.py         # Semantic backend and concurrent execution
 ├── output/           # Output directory for translated PVS files
 ├── tests/            # Sample TPTP input files
 ├── Makefile          # Automated build system

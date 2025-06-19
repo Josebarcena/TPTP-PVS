@@ -1,4 +1,4 @@
-FUENTE = TFG
+FUENTE = TPTPVS
 PRUEBA = examples/fof.p
 LIB = lfl
 

@@ -47,7 +47,7 @@ Procesamiento concurrente (carpetas)
 Puedes traducir todos los archivos .p de una carpeta (por ejemplo tests/) utilizando ejecución en paralelo con múltiples hilos:
 
 ```bash
-python3 parser.py tests/ -h 20
+./TPTPVS tests/ -h 20
 ```
 
 El sistema dividirá la carga entre los hilos disponibles para procesar los archivos en paralelo. Se generará una salida para cada archivo en la carpeta output/.
@@ -55,8 +55,8 @@ El sistema dividirá la carga entre los hilos disponibles para procesar los arch
 📁 Estructura del repositorio
 ```tree
 .
-├── parser.l          # Análisis léxico con Flex
-├── parser.y          # Análisis sintáctico con Bison
+├── TPTPVS.l          # Análisis léxico con Flex
+├── TPTPVS.y          # Análisis sintáctico con Bison
 ├── structs.{h,c}     # Definiciones de estructuras intermedias
 ├── parser.py         # Backend semántico y sistema concurrente
 ├── output/           # Carpeta de salida para traducciones PVS
