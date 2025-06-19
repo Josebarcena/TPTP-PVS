@@ -16,3 +16,7 @@ ARBOL.SVG
 ARBOL.png
 TFG.dot
 TPTPVS.tab.c
+TPTPVS.tab.h
+valgrind.log
+TPTPVS.dot
+TPTPVS

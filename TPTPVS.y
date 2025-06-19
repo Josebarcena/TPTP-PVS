@@ -891,13 +891,33 @@ int main(int argc, char *argv[]) {
                 FILE *in = stdin;
                 InitializeVars(1);
                 fileName[0] = strdup("TPTPS.pvs");
+                ScanVars *scanVars = malloc(sizeof(ScanVars));
+                scanVars->firstToken = 1;
+                scanVars->fileName = strdup(fileName[0]);
+                FILE *outputFile = fopen("Output/TPTPS.pvs", "w");
+                if (outputFile == NULL) {
+                    perror("ERROR: OutputFile cant be created.\n");
+                    return 0;
+                }
+                head[0] = NULL;
+                auxComment[0] = NULL;
+                aux[0] = NULL;
+                auxVar[0] = NULL;
+                existType[0] = 0;
+                existTypePlus[0] = 0;
+
 
                 yyscan_t scanner;
-                yylex_init(&scanner);
+                yylex_init_extra(scanVars, &scanner);
+                yyset_out(outputFile, scanner);
                 yyset_in(in, scanner);
                 yyparse(scanner, 0);
                 yylex_destroy(scanner);
                 fclose(in);
+
+                free(scanVars->fileName);
+                fclose(outputFile);
+                free(scanVars);
                 FreeVars();
                 break;
             case 2: 
@@ -917,7 +937,6 @@ int main(int argc, char *argv[]) {
                     InitializeVars(1);
                     ThreadArgs *args = malloc(sizeof(ThreadArgs));
                     args->numThread = FindAvailableThread(1);
-                    printf("Processing thread: %d \n", args->numThread);
                     strcpy(args->file,argv[2]);
                     ProcessFile((void *)args);
                     FreeVars();
