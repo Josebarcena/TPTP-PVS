@@ -59,8 +59,6 @@ El sistema dividirá la carga entre los hilos disponibles para procesar los arch
 ├── TPTPVS.y          # Análisis sintáctico con Bison
 ├── structs.{h,c}     # Definiciones de estructuras intermedias
 ├── parser.py         # Backend semántico y sistema concurrente
-├── output/           # Carpeta de salida para traducciones PVS
-├── tests/            # Carpeta con archivos TPTP de prueba
 ├── Makefile          # Compilación automática del sistema
 └── LICENSE           # Licencia Creative Commons BY-SA 4.0
 ```
