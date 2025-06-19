@@ -880,7 +880,6 @@ int main(int argc, char *argv[]) {
     thread_available = malloc(numThreads * sizeof(int));
     for(int i = 0; i < numThreads; i++){
         thread_available[i] = 1;
-        printf("Thread %d available.\n", i);
     }
 
 
