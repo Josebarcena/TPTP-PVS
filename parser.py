@@ -7,9 +7,12 @@ filtered_lines = []
 include_lines = []
 comments_lines = []
 inside_comment_block = False
-basic_types = ["bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_real", "rational", "string", "list[T]", "array[T1 -> T2]", "setof[T]", "function[T1 -> T2]", "record"]
+basic_types = ["TYPE+","bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_real", "rational", "string", "list[T]", "array[T1 -> T2]", "setof[T]", "function[T1 -> T2]", "record"]
+
+counter = 1
 
 pvsFile = re.sub(r'\.([^\s]+)', '', sys.argv[1]) + ".pvs" #PVS OUTPUT FILE
+
 
 
 def DEF_PARSER(line : str) -> None: #HERE WE PARSER FUNCTION DEFINITION
@@ -59,8 +62,11 @@ def COMMENT_PARSER(line: str) -> None:
         comments_lines.append(aux)
 
 def DT_PARSER(line : str) -> None:
+    global counter
+    aux1 = ""
     name, rest = line.split(":")
     rest = re.sub(r'[()]','',rest).strip()
+
     if "->" in rest:
         type = rest[:rest.rfind("->")].strip().replace('*', '->')
         out = rest[rest.rfind("->") + 2:].strip()
@@ -71,7 +77,18 @@ def DT_PARSER(line : str) -> None:
     else:
         type = rest.strip()
         aux = f"{name.strip()}: {type}" + "\n"
+        if type not in basic_types:
+            for i in range(1,4):
+                aux1 = aux1 + "x" + str(counter) + str(i)
+                if i != 4:
+                    aux1 = aux1 + ", "
+            aux1 = aux1 + ": " + name.strip() + "\n"
+            counter += 1
+
+        
         filtered_lines.append(aux)
+        if aux != "":
+            filtered_lines.append(aux1)
 
 with open(sys.argv[1], "r") as file:
     for line in file:

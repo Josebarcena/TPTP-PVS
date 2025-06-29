@@ -12,7 +12,7 @@ BISON_H = TPTPVS.tab.h
 
 FUENTE = TPTPVS
 PRUEBA = examples/fof.p
-LIB = lfl
+LIB = lfl -lpthread
 
 all: compile run2
 

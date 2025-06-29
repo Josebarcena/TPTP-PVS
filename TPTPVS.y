@@ -1,4 +1,5 @@
 %{
+#define _GNU_SOURCE    
 #include "structs.h"
 #include <stdio.h>
 #include <errno.h>
@@ -193,7 +194,7 @@ int Ends_AnthemDef(const char *str) {
 
 %type <valChar> binary_connective atom untyped_atom constant defined_term type assoc_connective
 
-%type <valChar> comments  include_file
+%type <valChar> comments  include_file id
 
 %start S
 
@@ -265,7 +266,7 @@ annotated_formula: thf_annotated {$$ = strdup($1);  free($1);}
 //	| cnf_annotated
 	;
 
-thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
+thf_annotated: THF OPAREN id COMMA type COMMA thf_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
                                                                             free(aux[thread]);
                                                                             aux[thread] = malloc(strlen(auxVar[thread]) + strlen($7) + 25);
                                                                             snprintf(aux[thread],strlen(auxVar[thread]) + strlen($7) + 25,"!DT¡ %s\n", $7);
@@ -288,28 +289,14 @@ thf_annotated: THF OPAREN FUNCTOR COMMA type COMMA thf_formula CPAREN DOT {if(st
                                                                                 $$ = strdup(aux[thread]); free($3); free($5); free($7);
                                                                             }
                                                                         }
-    | THF OPAREN NUMBER COMMA type COMMA thf_formula CPAREN DOT{if(strcmp($5,"TYPE") == 0){ //we use a TAG for python script
-                                                                            free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($7) + 20);
-                                                                            snprintf(aux[thread],strlen($3) + strlen($7) + 20,"!DT¡ %s\n", $7);
-                                                                            $$ = strdup(aux[thread]); free($5); free($7); free($3);
-                                                                            }
-                                                                            else if(strcmp($5,"DEFINITION") == 0){ //we use a TAG for python script
-                                                                                free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
-                                                                                $$ = strdup(aux[thread]); free($7); free($3); free($5);
-                                                                            }
-                                                                            /*else if(Ends_AnthemDef($3)){ //we use a TAG for python script
-                                                                                free(aux[thread]); aux[thread] = malloc(strlen($7) + 20); 
-                                                                                snprintf(aux[thread], strlen($7) + 20,"!DEF¡ %s \n", $7);
-                                                                                $$ = strdup(aux[thread]); free($7); free($3); free($5);
-                                                                            }*/
-                                                                           else{
-                                                                                free(aux[thread]); aux[thread] = malloc(strlen($3) + strlen($5) + strlen($7) + 20); //Direct parse
-                                                                                snprintf(aux[thread], strlen($3) + strlen($5) + strlen($7) + 20,"\n\n%s : %s \n\t%s", $3, $5, $7);
-                                                                                $$ = strdup(aux[thread]); free($3); free($5); free($7);
-                                                                            }
-                                                                        }
 	;
+
+id : NUMBER {$$ = strdup($1); free($1);/* id formula "number" */}
+    | FUNCTOR {$$ = strdup($1); free($1);/* id formula "functor" */}
+    | type {free(aux[thread]); aux[thread] = malloc(strlen($1) + 20); 
+                snprintf(aux[thread], strlen($1) + 20,"%s%d", $1, count++);
+                $$ = strdup(aux[thread]); free($1);}
+;
 
 /*tff_annotated: TFF OPAREN FUNCTOR COMMA type COMMA tff_formula CPAREN DOT {if(strcmp($5,"TYPE") == 0){
                                                                            Add_Variable(&head,$7,$5);
@@ -357,13 +344,14 @@ thf_logic_formula: thf_binary_formula {$$ = strdup($1); free($1);/* char comes f
     | thf_subtype {$$ = strdup($1); free($1);/* char comes from subtype*/}
     ;
 
-thf_binary_formula: /*thf_logic_formula binary_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+thf_binary_formula: thf_logic_formula binary_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
                                                                                     snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
-                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ //}
-    /*| thf_logic_formula assoc_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ }
+    | thf_logic_formula assoc_connective thf_logic_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($2) + strlen($3) + 5); 
                                                                                     snprintf(aux[thread], strlen($1)+ strlen($2) + strlen($3) + 5,"%s %s %s ", $1, $2, $3);
-                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ //}                                                                                 
-    thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
+                                                                                    $$ = strdup(aux[thread]); free($1); free($2); free($3);  /*we parser base formula */ } 
+
+    | thf_binary_pair {$$ = strdup($1); free($1);/*sending up the pair */}
 	| thf_binary_tuple {$$ = strdup($1); free($1);/*sending up the tuple */}
 	| thf_binary_type {$$ = strdup($1); free($1);/*sending up the tuple */}
 	;
@@ -417,6 +405,10 @@ thf_unitary_formula: thf_quantified_formula {$$ = strdup($1); free($1);/*sending
     | thf_conditional {$$ = strdup($1); free($1);/*sending up the formula */}
     | thf_let {$$ = strdup($1); free($1);/*sending up the let */}
     | thf_tuple {$$ = strdup($1); free($1);/*sending up the tuple */}
+    | thf_unitary_formula INFIX_EQUALITY thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($3) + 15);
+                                        snprintf(aux[thread],strlen($1)+ strlen($3) + 15,"%s = %s",$1, $3);
+                                        $$ = strdup(aux[thread]); free($1); free($3);/*sending up the tuple */}
+                                        
     | OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);
                                         snprintf(aux[thread],strlen($2) + 5,"(%s)", $2);
                                         $$ = strdup(aux[thread]); free($2);/*sending up the tuple */}
@@ -455,10 +447,7 @@ thf_typed_variable: VAR DDOT thf_top_level_type {free(auxVar[thread]); free(aux[
                                                 /*sending up the var */}
     ;
 /* AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIII*/
-thf_unary_formula: thf_unary_connective OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 5); 
-                                                                            snprintf(aux[thread], strlen($1) + strlen($3) + 5,"%s(%s)", $1, $3);
-                                                                            $$ = strdup(aux[thread]); free($1); free($3);/*we parser unary formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
-    | thf_unary_connective VAR {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($2) + 5); 
+thf_unary_formula: thf_unary_connective thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($2) + 5); 
                                                                             snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s(%s)", $1, $2);
                                                                             $$ = strdup(aux[thread]); free($1); free($2);/*we parser unary formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
                                                                             
@@ -631,7 +620,7 @@ th1_quantifier: TYPED_FORALL {$$ = strdup("FORALL "); /* convert bottom of the t
     |   TYPED_EXISTS {$$ = strdup("EXISTS "); /* convert bottom of the tree to PVS syntax --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?--*/}
     ;
 
-thf_pair_connective: INFIX_EQUALITY {$$ = strdup(" = "); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
+thf_pair_connective: INFIX_EQUALITY { $$ = strdup(" = "); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
     | INFIX_INEQUALITY {$$ = strdup("!="); /* --WARNING - NOT DIRECT CONVERSION--*/}
     | binary_connective {$$ = strdup($1); free($1); /* we send up binary_connective Char */}
     | ASSIGNMENT { $$ = strdup(":"); /* --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
@@ -679,6 +668,7 @@ binary_connective: IFF {$$ = strdup(" IFF "); /*we convert the token to PVS*/}
 
 assoc_connective: VLINE {$$ = strdup("OR"); /*bottom of the tree we save here the token*/}
     | AND {$$ = strdup("AND"); /*bottom of the tree we save here the token*/}
+    
     ;
 
 %%
@@ -887,7 +877,8 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&availability_mutex, NULL);
 
         switch (argc) {
-            case 1:	
+            case 1:
+            {
                 FILE *in = stdin;
                 InitializeVars(1);
                 fileName[0] = strdup("TPTPS.pvs");
@@ -920,6 +911,7 @@ int main(int argc, char *argv[]) {
                 free(scanVars);
                 FreeVars();
                 break;
+            }
             case 2: 
                 printf("ERROR INVALID NUMBER OF ARGUMENTS, EXAMPLE: \n \b -f file.p, -d directory");
                 break;
