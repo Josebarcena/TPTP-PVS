@@ -77,7 +77,7 @@ char *Prepared_types(char *var, int thread){
         }
         else if(!strcmp(var,"$i")){
             existTypePlus[thread] = 1;
-            return "TYPE+";
+            return "i";
         }
         else if(!strcmp(var,"$o")){
             return "bool";
@@ -206,8 +206,12 @@ S: tptp_file {                  FILE *out = yyget_out(scanner);
                                     fprintf(out,"%s\n", auxComment[thread]);
                                 }
                                 fprintf(out,"%s : THEORY \n \tBEGIN", fileName[thread]);
+                                if(existTypePlus[thread]){
+                                    fprintf(out,"\ni : TYPE+ \n");
+                                }
                                 fprintf(out,"\n%s", $1);
                                 fprintf(out,"\n\tEND %s",fileName[thread]);
+
                                 free($1);
                                 free(aux[thread]);
                                 free(auxComment[thread]);
@@ -448,7 +452,7 @@ thf_typed_variable: VAR DDOT thf_top_level_type {free(auxVar[thread]); free(aux[
     ;
 /* AQUIIIIIIIIIIIIIIIIIIIIIIIIIIIII*/
 thf_unary_formula: thf_unary_connective thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($2) + 5); 
-                                                                            snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s(%s)", $1, $2);
+                                                                            snprintf(aux[thread], strlen($1) + strlen($2) + 5,"%s %s", $1, $2);
                                                                             $$ = strdup(aux[thread]); free($1); free($2);/*we parser unary formula --CHECK AGAIN!! MAYBE WE NEED CHANGE IT?-- */}
                                                                             
     ;

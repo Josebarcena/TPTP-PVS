@@ -7,7 +7,7 @@ filtered_lines = []
 include_lines = []
 comments_lines = []
 inside_comment_block = False
-basic_types = ["TYPE+","bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_real", "rational", "string", "list[T]", "array[T1 -> T2]", "setof[T]", "function[T1 -> T2]", "record"]
+basic_types = ["bool", "int", "real", "nat", "posnat", "nonneg_real", "nonpos_real", "rational", "string", "list[T]", "array[T1 -> T2]", "setof[T]", "function[T1 -> T2]", "record"]
 
 counter = 1
 
@@ -77,10 +77,10 @@ def DT_PARSER(line : str) -> None:
     else:
         type = rest.strip()
         aux = f"{name.strip()}: {type}" + "\n"
-        if type not in basic_types:
+        if type == "TYPE+" or type == "i":
             for i in range(1,4):
                 aux1 = aux1 + "x" + str(counter) + str(i)
-                if i != 4:
+                if i != 3:
                     aux1 = aux1 + ", "
             aux1 = aux1 + ": " + name.strip() + "\n"
             counter += 1
