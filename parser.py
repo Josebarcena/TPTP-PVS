@@ -1,6 +1,7 @@
 import sys
 import re
 import textwrap
+import os
 
 functions = {}
 filtered_lines = []
@@ -131,3 +132,5 @@ with open(pvsFile, "w") as file:
     file.write("\n")
 
     file.writelines(filtered_lines)
+
+os.remove(sys.argv[1])

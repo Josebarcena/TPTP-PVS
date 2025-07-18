@@ -412,6 +412,10 @@ thf_unitary_formula: thf_quantified_formula {$$ = strdup($1); free($1);/*sending
     | thf_unitary_formula INFIX_EQUALITY thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1)+ strlen($3) + 15);
                                         snprintf(aux[thread],strlen($1)+ strlen($3) + 15,"%s = %s",$1, $3);
                                         $$ = strdup(aux[thread]); free($1); free($3);/*sending up the tuple */}
+
+    | thf_unitary_formula INFIX_INEQUALITY thf_unitary_formula {free(aux[thread]); aux[thread] = malloc(strlen($1) + strlen($3) + 25); 
+                                                                snprintf(aux[thread], strlen($1) + strlen($3) + 25,"NOT(%s = %s) ", $1, $3);
+                                                                $$ = strdup(aux[thread]); free($1); free($3);  /*we parser base formula */}
                                         
     | OPAREN thf_logic_formula CPAREN {free(aux[thread]); aux[thread] = malloc(strlen($2) + 5);
                                         snprintf(aux[thread],strlen($2) + 5,"(%s)", $2);
