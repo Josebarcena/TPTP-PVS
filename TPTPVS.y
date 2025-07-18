@@ -855,9 +855,6 @@ int main(int argc, char *argv[]) {
     timeinfo = localtime (&rawtime);
     struct stat st = {0};
 
-    struct timeval start_time, end_time;
-    
-    gettimeofday(&start_time, NULL);
     numThreads = 1;
     if(SO == 0){ //How we know the thread changes for each SO
        if(argc > 3){
@@ -961,10 +958,6 @@ int main(int argc, char *argv[]) {
 
     free(threads);
     
-    gettimeofday(&end_time, NULL);
-    double elapsed_time = (end_time.tv_sec - start_time.tv_sec) + 
-                          (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
-    printf("%f\n", elapsed_time);
     return 0;
 }
 

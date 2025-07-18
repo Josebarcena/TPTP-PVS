@@ -20,8 +20,9 @@ all2: compile run3
 
 compile:
 	flex $(FUENTE).l
-	bison -o $(FUENTE).tab.c $(FUENTE).y -yd -v 
+	bison -o $(FUENTE).tab.c $(FUENTE).y -yd
 	gcc -g -o $(FUENTE) lex.yy.c $(FUENTE).tab.c structs.c -$(LIB) 
+	rm $(FUENTE).tab.c $(FUENTE).tab.h lex.yy.c
 
 run:
 	./$(FUENTE) < $(PRUEBA)
