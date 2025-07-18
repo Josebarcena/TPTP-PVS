@@ -38,7 +38,7 @@ make compile
 ```
 Translate a single .p file
 ```bash
-./TPTPVS tests/ejemplo1.p
+./TPTPVS -f tests/ejemplo1.p
 ```
 This will generate an output file output/ejemplo1.pvs with the translated specification.
 
@@ -46,7 +46,7 @@ Concurrent processing (folder translation)
 You can translate all .p files in a folder (e.g., tests/) using parallel execution with multiple threads:
 
 ```bash
-./TPTPVS tests/ -h 20
+./TPTPVS -d tests/ -h 20
 ```
 
 The system will distribute the workload among available threads to process the files in parallel. Each result will be written into the output/ directory.

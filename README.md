@@ -37,8 +37,8 @@ cd TPTP-PVS
 make compile
 ```
 Ejecutar el traductor sobre un archivo individual
-```
-./TPTPVS tests/ejemplo1.p
+```bash
+./TPTPVS -f tests/ejemplo1.p
 
 ```
 Esto generará un archivo output/ejemplo1.pvs con la traducción resultante.
@@ -47,7 +47,7 @@ Procesamiento concurrente (carpetas)
 Puedes traducir todos los archivos .p de una carpeta (por ejemplo tests/) utilizando ejecución en paralelo con múltiples hilos:
 
 ```bash
-./TPTPVS tests/ -h 20
+./TPTPVS -d tests/ -h 20
 ```
 
 El sistema dividirá la carga entre los hilos disponibles para procesar los archivos en paralelo. Se generará una salida para cada archivo en la carpeta output/.

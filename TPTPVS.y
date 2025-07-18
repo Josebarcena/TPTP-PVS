@@ -205,7 +205,7 @@ S: tptp_file {                  FILE *out = yyget_out(scanner);
                                 if(auxComment[thread] != NULL){
                                     fprintf(out,"%s\n", auxComment[thread]);
                                 }
-                                fprintf(out,"%s : THEORY \n \tBEGIN", fileName[thread]);
+                                fprintf(out,"%s : THEORY \n \tBEGIN\n", fileName[thread]);
                                 if(existTypePlus[thread]){
                                     fprintf(out,"\ni : TYPE+ \n");
                                 }
